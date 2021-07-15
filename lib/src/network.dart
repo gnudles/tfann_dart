@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:tfann/ann.dart';
+import 'package:tfann/tfann.dart';
 import 'package:tfann/src/train_data.dart';
 
 import 'activation_function.dart';
