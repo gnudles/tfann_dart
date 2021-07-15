@@ -1,12 +1,14 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
-import 'package:ann/ann.dart';
-import 'package:ann/src/train_data.dart';
-import 'package:ml_linalg/linalg.dart';
-import 'package:quiver/core.dart';
+import 'package:tfann/ann.dart';
+import 'package:tfann/src/train_data.dart';
+
 import 'activation_function.dart';
 import 'dart:math';
 import 'dart:io';
+
+import 'linalg.dart';
 
 class RandomSupply {
   static final Random rng = Random();
@@ -14,88 +16,92 @@ class RandomSupply {
 }
 
 class FeedArtifacts {
-  final Vector activation;
-  final Vector derivative;
+  final FVector activation;
+  final FVector derivative;
   FeedArtifacts(this.activation, this.derivative);
 }
 
-class Layer {
-  Matrix weights;
-  Vector bias;
+class TfannLayer {
+  FLeftMatrix weights;
+  FVector bias;
   ActivationFunction activationFunc;
-  Layer.fromJsonMap(Map json)
-      : bias = Vector.fromJson(json["bias"]),
-        weights = Matrix.fromJson(json["weights"]),
+  TfannLayer.fromJsonMap(Map json)
+      : bias = FVector.fromJson(json["bias"]),
+        weights = FLeftMatrix.fromJson(json["weights"]),
         activationFunc = mapActivationFunction[json["activation"]]!;
 
-  Layer(int inputs, int outputs, this.activationFunc)
-      : bias = Vector.fromList(
+  TfannLayer(int inputs, int outputs, this.activationFunc)
+      : bias = FVector.fromList(
             List.generate(outputs, (index) => RandomSupply.nextReal)),
-        weights = Matrix.fromList(List.generate(outputs,
+        weights = FLeftMatrix.fromList(List.generate(outputs,
             (o) => List.generate(inputs, (i) => RandomSupply.nextReal)));
-  Vector feedForward(Vector input) {
-    return ((weights * input).toVector() + bias)
-        .mapToVector((x) => activationFunc.func(x));
+  FVector feedForward(FVector input) {
+    return ((weights.multiplyVector(input)) + bias)
+      ..apply((x) => activationFunc.func(x));
   }
 
-  FeedArtifacts createFeedArtifacts(Vector input) {
-    Vector intermediateVector = (weights * input).toVector() + bias;
+  FeedArtifacts createFeedArtifacts(FVector input) {
+    FVector intermediateVector = (weights.multiplyVector(input)) + bias;
     return FeedArtifacts(
-        intermediateVector.mapToVector((x) => activationFunc.func(x)),
-        intermediateVector.mapToVector((x) => activationFunc.derivative(x)));
+        intermediateVector.applied((x) => activationFunc.func(x)),
+        intermediateVector.applied((x) => activationFunc.derivative(x)));
   }
 
   Map<String, dynamic> toJson() {
-    return {"weights": weights.toJson(), "bias": bias.toJson(), "activation": activationFunc.type.toString()};
+    return {
+      "weights": weights.toJson(),
+      "bias": bias.toJson(),
+      "activation": activationFunc.type.toString()
+    };
   }
 }
 
-class Network {
-  List<Layer> layers = [];
-  Network(this.layers);
-  Network.full(List<int> layersDefinition,
+class TfannNetwork {
+  List<TfannLayer> layers = [];
+  TfannNetwork(this.layers);
+  TfannNetwork.full(List<int> layersDefinition,
       {ActivationFunction activation = activationAbsSigmoid}) {
     int nextInputs = layersDefinition[0];
 
     layersDefinition.skip(1).forEach((outputs) {
-      layers.add(Layer(nextInputs, outputs, activation));
+      layers.add(TfannLayer(nextInputs, outputs, activation));
       nextInputs = outputs;
     });
   }
-  Vector feedForward(Vector input) {
+  FVector feedForward(FVector input) {
     return layers.fold(input, (vec, layer) => layer.feedForward(vec));
   }
 
   void train(TrainData data, {double learningRate = 0.04}) {
-    Vector nextInputs = data.input;
+    FVector nextInputs = data.input;
     List<FeedArtifacts> artifacts = [
-      FeedArtifacts(nextInputs, Vector.zero(nextInputs.length))
+      FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
     ];
-    for (Layer l in layers) {
+    for (TfannLayer l in layers) {
       artifacts.add(l.createFeedArtifacts(nextInputs));
       nextInputs = artifacts.last.activation;
     }
-    Vector netOutput = nextInputs;
-    Vector netErrors = netOutput - data.output;
+    FVector netOutput = nextInputs;
+    FVector netErrors = netOutput - data.output;
     /*Vector meanSquareError =
         netErrors.mapToVector((value) => 0.5 * value * value);*/
-    Vector previousDelta = netErrors;
-    List<Vector> layerDelta = [];
+    FVector previousDelta = netErrors;
+    List<FVector> layerDelta = [];
     for (int i = layers.length - 1; i >= 0; --i) {
-      Vector currentDelta = (artifacts[i + 1].derivative * previousDelta);
+      FVector currentDelta = (artifacts[i + 1].derivative * previousDelta);
       layerDelta.add(currentDelta);
 
-      previousDelta = (layers[i].weights.transpose() * currentDelta).toVector();
+      previousDelta =
+          (layers[i].weights.transposed().multiplyVector(currentDelta));
     }
 
     var arti = artifacts.iterator;
-    for (Layer l in layers) {
-      l.bias -= layerDelta.last * learningRate;
+    for (TfannLayer l in layers) {
+      l.bias -= layerDelta.last.scaled(learningRate);
       arti.moveNext();
 
-      l.weights -= Matrix.column(layerDelta.last.toList()) *
-          Matrix.row(arti.current.activation.toList()) *
-          learningRate;
+      l.weights -= layerDelta.last.multiplyTransposed(arti.current.activation)
+        ..scale(learningRate);
       layerDelta.removeLast();
     }
   }
@@ -110,7 +116,7 @@ class Network {
     //return ret;
   }
 
-  static Optional<Network> fromFile(String filename) {
+  static TfannNetwork? fromFile(String filename) {
     String jsonString = File(filename).readAsStringSync();
     print(jsonString);
     var net = jsonDecode(jsonString);
@@ -118,9 +124,79 @@ class Network {
     assert((net as List).isNotEmpty);
     if (net is List) {
       assert(net.every((element) => element is Map));
-      return Optional.of(
-          Network(net.map((e) => Layer.fromJsonMap(e)).toList()));
+      return TfannNetwork(net.map((e) => TfannLayer.fromJsonMap(e)).toList());
     }
-    return Optional.absent();
+    return null;
+  }
+
+  String compile() {
+    StringBuffer stringBuffer = StringBuffer();
+    int inputSize = layers[0].weights.nColumns;
+
+    stringBuffer.write("import 'dart:typed_data';\n");
+    stringBuffer.write("import 'dart:math';\n\n");
+    stringBuffer.write(
+        "double logisticSigmoid(double x) { return 2 / (1 + exp(-x)) - 1;}\n");
+    stringBuffer
+        .write("double absSigmoid(double x) { return x / (1 + x.abs());}\n");
+    stringBuffer.write(
+        "double tanhSigmoid(double x) {  var e2x = exp(2 * x);    return (e2x - 1) / (e2x + 1); }\n");
+
+    stringBuffer
+        .write("List<double> tfann_evaluate(List<double> inData) \n{\n");
+    stringBuffer.write("  assert(inData.length == $inputSize);\n");
+    stringBuffer
+        .write("  Float32List input = Float32List(${roundUp4(inputSize)});\n");
+    stringBuffer
+        .write("  for (int i = 0; i< $inputSize; ++i) input[i] = inData[i];\n");
+
+    layers.asMap().forEach((i, layer) {
+      int weightsWidth = layer.weights.nColumns;
+      weightsWidth = roundUp4(weightsWidth) ~/ 2;
+
+      stringBuffer.write("  final List<Float32x4List> Lweight$i = [");
+
+      stringBuffer.write(layer.weights.rowsData
+          .map((row) =>
+              "Int64List.fromList(${row.buffer.asInt64List(0, weightsWidth).toList()}).buffer.asFloat32x4List()")
+          .join(", "));
+      stringBuffer.write("];\n");
+
+      stringBuffer.write(
+          "  final Float32x4List Lbias$i = Int64List.fromList(${layer.bias.columnData.buffer.asInt64List(0, ((layer.bias.length + 3) ~/ 4) * 2).toList()}).buffer.asFloat32x4List();\n");
+    });
+    stringBuffer.write(
+        "  Float32x4List currentTensor = input.buffer.asFloat32x4List();\n");
+    stringBuffer.write("  Float32List outputTensor;\n");
+    layers.asMap().forEach((i, layer) {
+      stringBuffer.write(
+          "  outputTensor = Float32List(${roundUp4(layer.weights.nRows)});\n");
+      stringBuffer.write(
+          "  for (int r = 0; r < ${layer.weights.nRows}; ++r)\n  {   Float32x4 sum = Float32x4.zero();\n");
+      stringBuffer.write("   Float32x4List weightRow = Lweight$i[r];\n");
+      stringBuffer.write(
+          "    for (int i = 0; i < ${(layer.weights.nColumns + 3) ~/ 4}; ++i)\n    {     sum+=currentTensor[i]*weightRow[i];   }\n");
+      stringBuffer
+          .write("    outputTensor[r] = sum.w + sum.x + sum.y + sum.z;\n  }\n");
+      stringBuffer
+          .write("  currentTensor = outputTensor.buffer.asFloat32x4List();\n");
+      int biasDiv4 = (layer.bias.length + 3) ~/ 4;
+      if (biasDiv4 > 1) {
+        stringBuffer.write(
+            "  for (int i = 0; i < ${(layer.bias.length + 3) ~/ 4}; ++i)\n");
+      }
+      stringBuffer.write(
+          "    currentTensor[${biasDiv4 == 1 ? "0" : "i"}]+=Lbias$i[${biasDiv4 == 1 ? "0" : "i"}];\n");
+      stringBuffer.write("  for (int i = 0; i < ${layer.bias.length}; ++i)\n");
+      stringBuffer.write("    outputTensor[i]=${[
+        "logisticSigmoid",
+        "tanhSigmoid",
+        "absSigmoid"
+      ][layer.activationFunc.type.index]}(outputTensor[i]);\n");
+    });
+    stringBuffer.write(
+        "  return currentTensor.buffer.asFloat32List(0,${layers.last.bias.length}).toList();\n}\n\n");
+
+    return stringBuffer.toString();
   }
 }

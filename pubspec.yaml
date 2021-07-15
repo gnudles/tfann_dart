@@ -1,6 +1,6 @@
-name: ann
-description: A new Flutter package project.
-version: 0.0.1
+name: tfann
+description: Tiny Fast Artificial Neural Network Library
+version: 0.1.0
 
 
 environment:
@@ -10,7 +10,6 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  ml_linalg: ^13.0.1
 
 dev_dependencies:
   flutter_test:

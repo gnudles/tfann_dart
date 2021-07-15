@@ -1,4 +1,4 @@
-library ann;
+library tfann;
 
 export 'src/network.dart';
 export 'src/train_data.dart';
