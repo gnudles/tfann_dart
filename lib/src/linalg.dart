@@ -33,6 +33,25 @@ class FVector {
       columnData[i] = columnData[i].scale(factor);
   }
 
+  FVector squared() {
+    FVector newVec = FVector.zero(nRows);
+    for (int i = 0; i < columnData.length; ++i)
+      newVec.columnData[i] = columnData[i] * columnData[i];
+    return newVec;
+  }
+  FVector abs() {
+    FVector newVec = FVector.zero(nRows);
+    for (int i = 0; i < columnData.length; ++i)
+      newVec.columnData[i] = columnData[i].abs();
+    return newVec;
+  }
+
+  double sumElements() {
+    Float32x4 sum = Float32x4.zero();
+    for (int i = 0; i < columnData.length; ++i) sum += columnData[i];
+    return sum.w + sum.x + sum.y + sum.z;
+  }
+
   FVector operator +(FVector other) {
     assert(nRows == other.nRows);
     FVector newVec = FVector.zero(nRows);
@@ -89,13 +108,14 @@ class FVector {
 
   FVector.fromJson(Map<String, dynamic> json)
       : nRows = (json["rows"] as int),
-        columnData = Float32List.fromList((json["data"] as List<dynamic>).map((e) => e as double)
+        columnData = Float32List.fromList((json["data"] as List<dynamic>)
+                .map((e) => e as double)
                 .followedBy([0, 0, 0]).toList(growable: false))
             .buffer
             .asFloat32x4List(
                 0, ((json["data"] as List<dynamic>).length + 3) ~/ 4);
   List<double> toList() {
-    return columnData.buffer.asFloat32List(0,nRows).toList();
+    return columnData.buffer.asFloat32List(0, nRows).toList();
   }
 }
 
@@ -234,8 +254,9 @@ class FLeftMatrix {
       : nRows = (json["rows"] as int),
         nColumns = (json["columns"] as int),
         rowsData = (json["data"] as List<dynamic>)
-            .map((list) => Float32List.fromList(
-                    (list as List<dynamic>).map((e) => e as double).followedBy([0, 0, 0]).toList(growable: false))
+            .map((list) => Float32List.fromList((list as List<dynamic>)
+                    .map((e) => e as double)
+                    .followedBy([0, 0, 0]).toList(growable: false))
                 .buffer
                 .asFloat32x4List(0, (list.length + 3) ~/ 4))
             .toList(growable: false);
@@ -271,8 +292,9 @@ class FRightMatrix {
       : nRows = (json["rows"] as int),
         nColumns = (json["columns"] as int),
         columnsData = (json["data"] as List<dynamic>)
-            .map((list) => Float32List.fromList(
-                    (list as List<dynamic>).map((e) => e as double).followedBy([0, 0, 0]).toList(growable: false))
+            .map((list) => Float32List.fromList((list as List<dynamic>)
+                    .map((e) => e as double)
+                    .followedBy([0, 0, 0]).toList(growable: false))
                 .buffer
                 .asFloat32x4List(0, (list.length + 3) ~/ 4))
             .toList(growable: false);

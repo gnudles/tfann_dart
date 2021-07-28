@@ -72,7 +72,8 @@ class TfannNetwork {
     return layers.fold(input, (vec, layer) => layer.feedForward(vec));
   }
 
-  void train(TrainData data, {double learningRate = 0.04}) {
+  // returns the propagated error of the first layer. it is good for chaining networks
+  FVector train(TrainData data, {double learningRate = 0.04}) {
     FVector nextInputs = data.input;
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
@@ -82,7 +83,11 @@ class TfannNetwork {
       nextInputs = artifacts.last.activation;
     }
     FVector netOutput = nextInputs;
-    FVector netErrors = netOutput - data.output;
+    FVector netErrors;
+    if (data.output != null)
+      netErrors = netOutput - data.output!;
+    else
+      netErrors = data.errors!;
     /*Vector meanSquareError =
         netErrors.mapToVector((value) => 0.5 * value * value);*/
     FVector previousDelta = netErrors;
@@ -104,6 +109,23 @@ class TfannNetwork {
         ..scale(learningRate);
       layerDelta.removeLast();
     }
+    return previousDelta;
+  }
+
+  double calculateMeanSquareError(TrainData data) {
+    assert(data.output != null);
+    return (feedForward(data.input) - data.output!).squared().sumElements() /
+        data.output!.nRows;
+  }
+
+  double calculateRootMeanSquareError(TrainData data) {
+    return sqrt(calculateMeanSquareError(data));
+  }
+
+  double calculateMeanAbsoluteError(TrainData data) {
+    assert(data.output != null);
+    return (feedForward(data.input) - data.output!).abs().sumElements() /
+        data.output!.nRows;
   }
 
   Future<void> save(String filename) async {
@@ -140,21 +162,16 @@ class TfannNetwork {
     stringBuffer
         .write("double absSigmoid(double x) { return x / (1 + x.abs());}\n");
     stringBuffer.write(
-        "double tanhSigmoid(double x) {  var e2x = exp(2 * x);    return (e2x - 1) / (e2x + 1); }\n");
+        "double tanh(double x) {  var e2x = exp(2 * x);    return (e2x - 1) / (e2x + 1); }\n");
 
-    stringBuffer
-        .write("List<double> tfann_evaluate(List<double> inData) \n{\n");
-    stringBuffer.write("  assert(inData.length == $inputSize);\n");
-    stringBuffer
-        .write("  Float32List input = Float32List(${roundUp4(inputSize)});\n");
-    stringBuffer
-        .write("  for (int i = 0; i< $inputSize; ++i) input[i] = inData[i];\n");
-
-    layers.asMap().forEach((i, layer) {
+    stringBuffer.write("double bell(double x) {      return exp(-0.5*x*x);}\n");
+    stringBuffer.write("double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}\n\n\n");
+    
+  layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
       weightsWidth = roundUp4(weightsWidth) ~/ 2;
 
-      stringBuffer.write("  final List<Float32x4List> Lweight$i = [");
+      stringBuffer.write("final List<Float32x4List> Lweight$i = [");
 
       stringBuffer.write(layer.weights.rowsData
           .map((row) =>
@@ -163,8 +180,16 @@ class TfannNetwork {
       stringBuffer.write("];\n");
 
       stringBuffer.write(
-          "  final Float32x4List Lbias$i = Int64List.fromList(${layer.bias.columnData.buffer.asInt64List(0, ((layer.bias.length + 3) ~/ 4) * 2).toList()}).buffer.asFloat32x4List();\n");
+          "final Float32x4List Lbias$i = Int64List.fromList(${layer.bias.columnData.buffer.asInt64List(0, ((layer.bias.length + 3) ~/ 4) * 2).toList()}).buffer.asFloat32x4List();\n");
     });
+    stringBuffer
+        .write("\n\nList<double> tfann_evaluate(List<double> inData) \n{\n");
+    stringBuffer.write("  assert(inData.length == $inputSize);\n");
+    stringBuffer
+        .write("  Float32List input = Float32List(${roundUp4(inputSize)});\n");
+    stringBuffer
+        .write("  for (int i = 0; i< $inputSize; ++i) input[i] = inData[i];\n");
+
     stringBuffer.write(
         "  Float32x4List currentTensor = input.buffer.asFloat32x4List();\n");
     stringBuffer.write("  Float32List outputTensor;\n");
@@ -172,12 +197,17 @@ class TfannNetwork {
       stringBuffer.write(
           "  outputTensor = Float32List(${roundUp4(layer.weights.nRows)});\n");
       stringBuffer.write(
-          "  for (int r = 0; r < ${layer.weights.nRows}; ++r)\n  {   Float32x4 sum = Float32x4.zero();\n");
-      stringBuffer.write("   Float32x4List weightRow = Lweight$i[r];\n");
-      stringBuffer.write(
-          "    for (int i = 0; i < ${(layer.weights.nColumns + 3) ~/ 4}; ++i)\n    {     sum+=currentTensor[i]*weightRow[i];   }\n");
+          "  for (int r = 0; r < ${layer.weights.nRows}; ++r)\n  {\n");
+      stringBuffer.write("    Float32x4List weightRow = Lweight$i[r];\n");
+      int columns4 = (layer.weights.nColumns + 3) ~/ 4;
+      if (columns4 == 1) {
+        stringBuffer.write("    Float32x4 sum = currentTensor[0]*weightRow[0];\n");
+      } else {
+        stringBuffer.write(
+            "    Float32x4 sum = Float32x4.zero();\n    for (int i = 0; i < $columns4; ++i)\n    {     sum+=currentTensor[i]*weightRow[i];   }\n");
+      }
       stringBuffer
-          .write("    outputTensor[r] = sum.w + sum.x + sum.y + sum.z;\n  }\n");
+          .write("    outputTensor[r] = sum.z ${layer.weights.nColumns>=2?'+ sum.y':''} ${layer.weights.nColumns>=3?'+ sum.x':''} ${layer.weights.nColumns>=4?'+ sum.w':''};\n  }\n");
       stringBuffer
           .write("  currentTensor = outputTensor.buffer.asFloat32x4List();\n");
       int biasDiv4 = (layer.bias.length + 3) ~/ 4;
@@ -189,9 +219,11 @@ class TfannNetwork {
           "    currentTensor[${biasDiv4 == 1 ? "0" : "i"}]+=Lbias$i[${biasDiv4 == 1 ? "0" : "i"}];\n");
       stringBuffer.write("  for (int i = 0; i < ${layer.bias.length}; ++i)\n");
       stringBuffer.write("    outputTensor[i]=${[
-        "logisticSigmoid",
-        "tanhSigmoid",
-        "absSigmoid"
+        'logisticSigmoid',
+        'tanh',
+        'absSigmoid',
+        'bell',
+        'gelu'
       ][layer.activationFunc.type.index]}(outputTensor[i]);\n");
     });
     stringBuffer.write(
