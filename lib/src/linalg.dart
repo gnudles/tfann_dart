@@ -28,6 +28,29 @@ class FVector {
     return newVec;
   }
 
+  FVector concat(FVector other) {
+    Float32x4List newColumnData = Float32x4List((nRows + other.nRows + 3) ~/ 4);
+    int i;
+    for (i = 0; i < columnData.length; ++i) newColumnData[i] = columnData[i];
+
+    if (nRows % 4 == 0) {
+      for (int j = 0; j < other.columnData.length; ++j, ++i) {
+        newColumnData[i] = other.columnData[j];
+      }
+    } else {
+      if (nRows % 2 == 0) {
+        var intView = newColumnData.buffer.asInt64List(nRows * 4);
+        var otherSrcView = other.columnData.buffer.asInt64List();
+        for (i = 0; i < otherSrcView.length; ++i) intView[i] = otherSrcView[i];
+      } else {
+        var intView = newColumnData.buffer.asInt32List(nRows * 4);
+        var otherSrcView = other.columnData.buffer.asInt32List();
+        for (i = 0; i < otherSrcView.length; ++i) intView[i] = otherSrcView[i];
+      }
+    }
+    return FVector.fromBuffer(nRows + other.nRows, newColumnData);
+  }
+
   void scale(double factor) {
     for (int i = 0; i < columnData.length; ++i)
       columnData[i] = columnData[i].scale(factor);
@@ -39,6 +62,7 @@ class FVector {
       newVec.columnData[i] = columnData[i] * columnData[i];
     return newVec;
   }
+
   FVector abs() {
     FVector newVec = FVector.zero(nRows);
     for (int i = 0; i < columnData.length; ++i)
