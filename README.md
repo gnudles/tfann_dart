@@ -67,7 +67,7 @@ var xor_net = TfannNetwork.fromFile("binary.net")!;
 
 You may also compile the network into pure dart code. It is very good for production stage.
 
-The produced code have no dependencies at all, even not this library.
+The produced code have no dependencies at all, even not this package.
 
 Usage:
 ```
