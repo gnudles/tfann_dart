@@ -56,7 +56,7 @@ List<double> tfann_evaluate(List<double> inData)
 
 void main() {
   test('test xor', () async {
-    final xor_net = TfannNetwork.full([3, 5, 4], activation: activationGELU);
+    final xor_net = TfannNetwork.full([3, 5, 4], activation: ActivationFunctionType.gelu);
     //xor_net.layers[0].activationFunc = activationBell;
     List<TrainData> xor_data_m = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
@@ -92,7 +92,7 @@ void main() {
     print("training...");
     for (int i = 0; i < 5000; ++i) {
       xor_data.forEach((data) {
-        xor_net.train(data, learningRate: 0.07);
+        xor_net.train(data, learningRate: 0.04);
       });
     }
 

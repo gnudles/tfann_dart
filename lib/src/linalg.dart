@@ -132,9 +132,7 @@ class FVector {
 
   FVector.fromJson(Map<String, dynamic> json)
       : nRows = (json["rows"] as int),
-        columnData = Float32List.fromList((json["data"] as List<dynamic>)
-                .map((e) => e as double)
-                .followedBy([0, 0, 0]).toList(growable: false))
+        columnData = Float32List.fromList((json["data"] as List).cast<double>().followedBy([0.0, 0.0, 0.0]).toList(growable: false))
             .buffer
             .asFloat32x4List(
                 0, ((json["data"] as List<dynamic>).length + 3) ~/ 4);
@@ -278,9 +276,8 @@ class FLeftMatrix {
       : nRows = (json["rows"] as int),
         nColumns = (json["columns"] as int),
         rowsData = (json["data"] as List<dynamic>)
-            .map((list) => Float32List.fromList((list as List<dynamic>)
-                    .map((e) => e as double)
-                    .followedBy([0, 0, 0]).toList(growable: false))
+            .map((list) => Float32List.fromList(list.cast<double>()
+                    .followedBy([0.0, 0.0, 0.0]).toList(growable: false))
                 .buffer
                 .asFloat32x4List(0, (list.length + 3) ~/ 4))
             .toList(growable: false);

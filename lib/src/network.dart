@@ -28,13 +28,14 @@ class TfannLayer {
   TfannLayer.fromJsonMap(Map json)
       : bias = FVector.fromJson(json["bias"]),
         weights = FLeftMatrix.fromJson(json["weights"]),
-        activationFunc = mapActivationFunction[json["activation"]]!;
+        activationFunc = mapActivationFunction[activationTypeFromString[json["activation"]]!]!;
 
-  TfannLayer(int inputs, int outputs, this.activationFunc)
+  TfannLayer(int inputs, int outputs, ActivationFunctionType activationFuncType)
       : bias = FVector.fromList(
             List.generate(outputs, (index) => RandomSupply.nextReal)),
         weights = FLeftMatrix.fromList(List.generate(outputs,
-            (o) => List.generate(inputs, (i) => RandomSupply.nextReal)));
+            (o) => List.generate(inputs, (i) => RandomSupply.nextReal))),
+        activationFunc = mapActivationFunction[activationFuncType]!;
   FVector feedForward(FVector input) {
     return ((weights.multiplyVector(input)) + bias)
       ..apply((x) => activationFunc.func(x));
@@ -60,7 +61,7 @@ class TfannNetwork {
   List<TfannLayer> layers = [];
   TfannNetwork(this.layers);
   TfannNetwork.full(List<int> layersDefinition,
-      {ActivationFunction activation = activationAbsSigmoid}) {
+      {ActivationFunctionType activation = ActivationFunctionType.abs}) {
     int nextInputs = layersDefinition[0];
 
     layersDefinition.skip(1).forEach((outputs) {
@@ -140,7 +141,6 @@ class TfannNetwork {
 
   static TfannNetwork? fromFile(String filename) {
     String jsonString = File(filename).readAsStringSync();
-    print(jsonString);
     var net = jsonDecode(jsonString);
     assert(net is List);
     assert((net as List).isNotEmpty);
@@ -151,27 +151,34 @@ class TfannNetwork {
     return null;
   }
 
-  String compile() {
+  String compile({String functionName = 'tfann_evaluate'}) {
     StringBuffer stringBuffer = StringBuffer();
     int inputSize = layers[0].weights.nColumns;
+    var activationsSet = layers.map((e) => e.activationFunc.type).toSet();
 
     stringBuffer.write("import 'dart:typed_data';\n");
     stringBuffer.write("import 'dart:math';\n\n");
+    if (activationsSet.contains(ActivationFunctionType.logistic))
     stringBuffer.write(
         "double logisticSigmoid(double x) { return 2 / (1 + exp(-x)) - 1;}\n");
+    if (activationsSet.contains(ActivationFunctionType.abs))
     stringBuffer
         .write("double absSigmoid(double x) { return x / (1 + x.abs());}\n");
+    if (activationsSet.contains(ActivationFunctionType.tanh))
     stringBuffer.write(
         "double tanh(double x) {  var e2x = exp(2 * x);    return (e2x - 1) / (e2x + 1); }\n");
-
+    if (activationsSet.contains(ActivationFunctionType.bell))
     stringBuffer.write("double bell(double x) {      return exp(-0.5*x*x);}\n");
-    stringBuffer.write("double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}\n\n\n");
-    
-  layers.asMap().forEach((i, layer) {
+    if (activationsSet.contains(ActivationFunctionType.gelu))
+    stringBuffer.write(
+        "double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}\n\n\n");
+
+    layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
       weightsWidth = roundUp4(weightsWidth) ~/ 2;
 
-      stringBuffer.write("final List<Float32x4List> Lweight$i = [");
+      stringBuffer
+          .write("final List<Float32x4List> Lweight_${functionName}_$i = [");
 
       stringBuffer.write(layer.weights.rowsData
           .map((row) =>
@@ -180,10 +187,10 @@ class TfannNetwork {
       stringBuffer.write("];\n");
 
       stringBuffer.write(
-          "final Float32x4List Lbias$i = Int64List.fromList(${layer.bias.columnData.buffer.asInt64List(0, ((layer.bias.length + 3) ~/ 4) * 2).toList()}).buffer.asFloat32x4List();\n");
+          "final Float32x4List Lbias_${functionName}_$i = Int64List.fromList(${layer.bias.columnData.buffer.asInt64List(0, ((layer.bias.length + 3) ~/ 4) * 2).toList()}).buffer.asFloat32x4List();\n");
     });
     stringBuffer
-        .write("\n\nList<double> tfann_evaluate(List<double> inData) \n{\n");
+        .write("\n\nList<double> ${functionName}(List<double> inData) \n{\n");
     stringBuffer.write("  assert(inData.length == $inputSize);\n");
     stringBuffer
         .write("  Float32List input = Float32List(${roundUp4(inputSize)});\n");
@@ -196,18 +203,20 @@ class TfannNetwork {
     layers.asMap().forEach((i, layer) {
       stringBuffer.write(
           "  outputTensor = Float32List(${roundUp4(layer.weights.nRows)});\n");
+      stringBuffer
+          .write("  for (int r = 0; r < ${layer.weights.nRows}; ++r)\n  {\n");
       stringBuffer.write(
-          "  for (int r = 0; r < ${layer.weights.nRows}; ++r)\n  {\n");
-      stringBuffer.write("    Float32x4List weightRow = Lweight$i[r];\n");
+          "    Float32x4List weightRow = Lweight_${functionName}_$i[r];\n");
       int columns4 = (layer.weights.nColumns + 3) ~/ 4;
       if (columns4 == 1) {
-        stringBuffer.write("    Float32x4 sum = currentTensor[0]*weightRow[0];\n");
+        stringBuffer
+            .write("    Float32x4 sum = currentTensor[0]*weightRow[0];\n");
       } else {
         stringBuffer.write(
             "    Float32x4 sum = Float32x4.zero();\n    for (int i = 0; i < $columns4; ++i)\n    {     sum+=currentTensor[i]*weightRow[i];   }\n");
       }
-      stringBuffer
-          .write("    outputTensor[r] = sum.z ${layer.weights.nColumns>=2?'+ sum.y':''} ${layer.weights.nColumns>=3?'+ sum.x':''} ${layer.weights.nColumns>=4?'+ sum.w':''};\n  }\n");
+      stringBuffer.write(
+          "    outputTensor[r] = sum.z ${layer.weights.nColumns >= 2 ? '+ sum.y' : ''} ${layer.weights.nColumns >= 3 ? '+ sum.x' : ''} ${layer.weights.nColumns >= 4 ? '+ sum.w' : ''};\n  }\n");
       stringBuffer
           .write("  currentTensor = outputTensor.buffer.asFloat32x4List();\n");
       int biasDiv4 = (layer.bias.length + 3) ~/ 4;
@@ -216,7 +225,7 @@ class TfannNetwork {
             "  for (int i = 0; i < ${(layer.bias.length + 3) ~/ 4}; ++i)\n");
       }
       stringBuffer.write(
-          "    currentTensor[${biasDiv4 == 1 ? "0" : "i"}]+=Lbias$i[${biasDiv4 == 1 ? "0" : "i"}];\n");
+          "    currentTensor[${biasDiv4 == 1 ? "0" : "i"}]+=Lbias_${functionName}_$i[${biasDiv4 == 1 ? "0" : "i"}];\n");
       stringBuffer.write("  for (int i = 0; i < ${layer.bias.length}; ++i)\n");
       stringBuffer.write("    outputTensor[i]=${[
         'logisticSigmoid',
