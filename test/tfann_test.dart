@@ -5,20 +5,18 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tfann/tfann.dart';
 
-
 import 'dart:typed_data';
+import 'dart:math';
 
-
-double logisticSigmoid(double x) { return 2 / (1 + exp(-x)) - 1;}
-double absSigmoid(double x) { return x / (1 + x.abs());}
-double tanh(double x) {  var e2x = exp(2 * x);    return (e2x - 1) / (e2x + 1); }
-double bell(double x) {      return exp(-0.5*x*x);}
 double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}
 
-final List<Float32x4List> Lweight0 = [Int64List.fromList([-4646641295893529096, 3172877232]).buffer.asFloat32x4List(), Int64List.fromList([-4673762236250713944, 1067269284]).buffer.asFloat32x4List(), Int64List.fromList([-4641594773778789480, 3214371336]).buffer.asFloat32x4List(), Int64List.fromList([4552613333509948838, 1060709916]).buffer.asFloat32x4List(), Int64List.fromList([4552999294302083874, 3213159812]).buffer.asFloat32x4List()];
-final Float32x4List Lbias0 = Int64List.fromList([-4634343050039762903, -4659082080990716510, 3212709118, 0]).buffer.asFloat32x4List();
-final List<Float32x4List> Lweight1 = [Int64List.fromList([-4632948360339278083, -4650718106777998393, 3207958840, 0]).buffer.asFloat32x4List(), Int64List.fromList([4436658467828238390, -4675627400956649014, 1034688105, 0]).buffer.asFloat32x4List(), Int64List.fromList([-4679483673863445349, -4743187322439184805, 1027282343, 0]).buffer.asFloat32x4List(), Int64List.fromList([4564901376650663194, 4560493110259876338, 1061242266, 0]).buffer.asFloat32x4List()];
-final Float32x4List Lbias1 = Int64List.fromList([4566627642148215372, -4783000683564538653]).buffer.asFloat32x4List();
+
+final List<Float32x4List> Lweight_tfann_evaluate_0 = [Int64List.fromList([-4684549482552772993, 3205952384]).buffer.asFloat32x4List(), Int64List.fromList([-4658463640062052053, 1067246068]).buffer.asFloat32x4List(), Int64List.fromList([4559296036336047244, 1060296640]).buffer.asFloat32x4List(), Int64List.fromList([4559652263048579599, 3214348148]).buffer.asFloat32x4List(), Int64List.fromList([4584575986206599728, 1068362496]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_0 = Int64List.fromList([4528448722206921976, -4714918008769206507, 3215666407, 0]).buffer.asFloat32x4List();
+final List<Float32x4List> Lweight_tfann_evaluate_1 = [Int64List.fromList([-4691824521505253971, -4665807858037931927, 3218341393, 0]).buffer.asFloat32x4List(), Int64List.fromList([-4629209937054397183, -4682969759229455083, 3189351279, 0]).buffer.asFloat32x4List(), Int64List.fromList([4406611430715703517, 4434756430857720869, 3199162943, 0]).buffer.asFloat32x4List(), Int64List.fromList([4546870734602276260, 4576005591552021506, 1051710346, 0]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_1 = Int64List.fromList([-4605361703785376108, -4673147291425281497]).buffer.asFloat32x4List();
+
+
 List<double> tfann_evaluate(List<double> inData) 
 {
   assert(inData.length == 3);
@@ -29,26 +27,26 @@ List<double> tfann_evaluate(List<double> inData)
   outputTensor = Float32List(8);
   for (int r = 0; r < 5; ++r)
   {
-    Float32x4List weightRow = Lweight0[r];
+    Float32x4List weightRow = Lweight_tfann_evaluate_0[r];
     Float32x4 sum = currentTensor[0]*weightRow[0];
     outputTensor[r] = sum.z + sum.y + sum.x ;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
   for (int i = 0; i < 2; ++i)
-    currentTensor[i]+=Lbias0[i];
+    currentTensor[i]+=Lbias_tfann_evaluate_0[i];
   for (int i = 0; i < 5; ++i)
     outputTensor[i]=gelu(outputTensor[i]);
   outputTensor = Float32List(4);
   for (int r = 0; r < 4; ++r)
   {
-    Float32x4List weightRow = Lweight1[r];
+    Float32x4List weightRow = Lweight_tfann_evaluate_1[r];
     Float32x4 sum = Float32x4.zero();
     for (int i = 0; i < 2; ++i)
     {     sum+=currentTensor[i]*weightRow[i];   }
     outputTensor[r] = sum.z + sum.y + sum.x + sum.w;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
-    currentTensor[0]+=Lbias1[0];
+    currentTensor[0]+=Lbias_tfann_evaluate_1[0];
   for (int i = 0; i < 4; ++i)
     outputTensor[i]=gelu(outputTensor[i]);
   return currentTensor.buffer.asFloat32List(0,4).toList();

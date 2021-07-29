@@ -65,24 +65,16 @@ To load the network:
 var xor_net = TfannNetwork.fromFile("binary.net")!;
 ```
 
-Add it to your `pubspec.yaml`:
+You may also compile the network into pure dart code. It is very good for production stage.
 
-```
-dependencies:
-  flutter:
-    sdk: flutter
-  tfann:
-    git:
-      url: https://github.com/gnudles/tfann_dart.git
-      ref: main
-```
+The produced code have no dependencies at all, even not this library.
 
-You can compile the network also:
+Usage:
 ```
 print(xor_net.compile());
 ```
 
-output:
+Output:
 ```
 import 'dart:typed_data';
 import 'dart:math';
