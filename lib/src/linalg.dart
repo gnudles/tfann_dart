@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 class FVector {
-  Float32x4List columnData;
+  final Float32x4List columnData;
   int nRows;
   int get length => nRows;
   FVector.zero(this.nRows) : columnData = Float32x4List((nRows + 3) ~/ 4);
@@ -13,6 +13,11 @@ class FVector {
             .buffer
             .asFloat32x4List();
   FVector.fromBuffer(this.nRows, this.columnData);
+  void trim(int length) {
+    assert(length <= nRows);
+    nRows = length;
+  }
+
   FVector operator *(FVector other) {
     assert(nRows == other.nRows);
     FVector newVec = FVector.zero(nRows);
@@ -92,11 +97,43 @@ class FVector {
     return newVec;
   }
 
-  void apply(double Function(double) func) {
-    Float32List input = columnData.buffer.asFloat32List();
-    for (int i = 0; i < nRows; ++i) {
-      input[i] = func(input[i]);
+  void apply(double Function(double) func,
+      [Float32x4 Function(Float32x4)? funcSIMD]) {
+    int start = 0;
+    if (funcSIMD != null && nRows >= 4) {
+      var full4 = nRows ~/ 4;
+      for (int i = 0; i < full4; ++i) {
+        columnData[i] = funcSIMD(columnData[i]);
+      }
+      start = full4 * 4;
     }
+    if (start < nRows) {
+      Float32List input = columnData.buffer.asFloat32List();
+      for (int i = start; i < nRows; ++i) {
+        input[i] = func(input[i]);
+      }
+    }
+  }
+
+  FVector applied(double Function(double) func,
+      [Float32x4 Function(Float32x4)? funcSIMD]) {
+    int start = 0;
+    FVector newVec = FVector.zero(nRows);
+    if (funcSIMD != null && nRows >= 4) {
+      var full4 = nRows ~/ 4;
+      for (int i = 0; i < full4; ++i) {
+        newVec.columnData[i] = funcSIMD(columnData[i]);
+      }
+      start = full4 * 4;
+    }
+    if (start < nRows) {
+      Float32List input = columnData.buffer.asFloat32List();
+      Float32List result = newVec.columnData.buffer.asFloat32List();
+      for (int i = start; i < nRows; ++i) {
+        result[i] = func(input[i]);
+      }
+    }
+    return newVec;
   }
 
   FLeftMatrix multiplyTransposed(FVector other) {
@@ -112,16 +149,6 @@ class FVector {
     return result;
   }
 
-  FVector applied(double Function(double) func) {
-    FVector newVec = FVector.zero(nRows);
-    Float32List input = columnData.buffer.asFloat32List();
-    Float32List result = newVec.columnData.buffer.asFloat32List();
-    for (int i = 0; i < nRows; ++i) {
-      result[i] = func(input[i]);
-    }
-    return newVec;
-  }
-
   Map<String, dynamic> toJson() {
     Map<String, dynamic> json = {};
     json["rows"] = nRows;
@@ -132,7 +159,9 @@ class FVector {
 
   FVector.fromJson(Map<String, dynamic> json)
       : nRows = (json["rows"] as int),
-        columnData = Float32List.fromList((json["data"] as List).cast<double>().followedBy([0.0, 0.0, 0.0]).toList(growable: false))
+        columnData = Float32List.fromList((json["data"] as List)
+                .cast<double>()
+                .followedBy([0.0, 0.0, 0.0]).toList(growable: false))
             .buffer
             .asFloat32x4List(
                 0, ((json["data"] as List<dynamic>).length + 3) ~/ 4);
@@ -276,7 +305,8 @@ class FLeftMatrix {
       : nRows = (json["rows"] as int),
         nColumns = (json["columns"] as int),
         rowsData = (json["data"] as List<dynamic>)
-            .map((list) => Float32List.fromList(list.cast<double>()
+            .map((list) => Float32List.fromList(list
+                    .cast<double>()
                     .followedBy([0.0, 0.0, 0.0]).toList(growable: false))
                 .buffer
                 .asFloat32x4List(0, (list.length + 3) ~/ 4))

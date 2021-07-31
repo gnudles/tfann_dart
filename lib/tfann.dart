@@ -1,6 +1,11 @@
+/// Artificial Neural Network related structures and classes.
+///
+/// To use this library in your code:
+/// ```dart
+/// import 'package:tfann/tfann.dart';
+/// ```
 library tfann;
 
-import 'package:tfann/src/linalg.dart';
 
 export 'src/network.dart';
 export 'src/train_data.dart';

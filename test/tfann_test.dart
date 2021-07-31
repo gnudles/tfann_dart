@@ -9,13 +9,13 @@ import 'package:tfann/tfann.dart';
 import 'dart:typed_data';
 
 
-double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}
 
 
-final List<Float32x4List> Lweight_tfann_evaluate_0 = [Int64List.fromList([-4684549482552772993, 3205952384]).buffer.asFloat32x4List(), Int64List.fromList([-4658463640062052053, 1067246068]).buffer.asFloat32x4List(), Int64List.fromList([4559296036336047244, 1060296640]).buffer.asFloat32x4List(), Int64List.fromList([4559652263048579599, 3214348148]).buffer.asFloat32x4List(), Int64List.fromList([4584575986206599728, 1068362496]).buffer.asFloat32x4List()];
-final Float32x4List Lbias_tfann_evaluate_0 = Int64List.fromList([4528448722206921976, -4714918008769206507, 3215666407, 0]).buffer.asFloat32x4List();
-final List<Float32x4List> Lweight_tfann_evaluate_1 = [Int64List.fromList([-4691824521505253971, -4665807858037931927, 3218341393, 0]).buffer.asFloat32x4List(), Int64List.fromList([-4629209937054397183, -4682969759229455083, 3189351279, 0]).buffer.asFloat32x4List(), Int64List.fromList([4406611430715703517, 4434756430857720869, 3199162943, 0]).buffer.asFloat32x4List(), Int64List.fromList([4546870734602276260, 4576005591552021506, 1051710346, 0]).buffer.asFloat32x4List()];
-final Float32x4List Lbias_tfann_evaluate_1 = Int64List.fromList([-4605361703785376108, -4673147291425281497]).buffer.asFloat32x4List();
+double lelu(double x) {  if (x > 4) return 1 + 0.25 * x;  if (x > -2) return 0.5 * x;  return 0.0625 * x - 0.875; }
+final List<Float32x4List> Lweight_tfann_evaluate_0 = [Uint32List.fromList([1074595097, 1074594525, 1074548888, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1066487571, 1066486951, 1066408945, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3203043203, 3203061381, 3204571980, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1077877061, 1077877265, 1077877915, 0, 0, 0]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_0 = Uint32List.fromList([3223715385, 1068675839, 3205715206, 1066062574, 0, 0, 0]).buffer.asFloat32x4List();
+final List<Float32x4List> Lweight_tfann_evaluate_1 = [Uint32List.fromList([1076498796, 1081899750, 3210878056, 3229217574, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1074367905, 3193880649, 3216376642, 3209567584, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3211786681, 1082026308, 3206642288, 3215419462, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3227791941, 3160304183, 1060213995, 1076696127, 0, 0, 0]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_1 = Uint32List.fromList([1062699993, 3202167228, 3211185041, 3228674663, 0, 0, 0]).buffer.asFloat32x4List();
 
 
 List<double> tfann_evaluate(List<double> inData) 
@@ -25,37 +25,42 @@ List<double> tfann_evaluate(List<double> inData)
   for (int i = 0; i< 3; ++i) input[i] = inData[i];
   Float32x4List currentTensor = input.buffer.asFloat32x4List();
   Float32List outputTensor;
-  outputTensor = Float32List(8);
-  for (int r = 0; r < 5; ++r)
+  outputTensor = Float32List(4);
+  for (int r = 0; r < 4; ++r)
   {
     Float32x4List weightRow = Lweight_tfann_evaluate_0[r];
     Float32x4 sum = currentTensor[0]*weightRow[0];
     outputTensor[r] = sum.z + sum.y + sum.x ;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
-  for (int i = 0; i < 2; ++i)
-    currentTensor[i]+=Lbias_tfann_evaluate_0[i];
-  for (int i = 0; i < 5; ++i)
-    outputTensor[i]=gelu(outputTensor[i]);
+    currentTensor[0]+=Lbias_tfann_evaluate_0[0];
+  for (int i = 0; i < 4; ++i)
+    outputTensor[i]=lelu(outputTensor[i]);
   outputTensor = Float32List(4);
   for (int r = 0; r < 4; ++r)
   {
     Float32x4List weightRow = Lweight_tfann_evaluate_1[r];
-    Float32x4 sum = Float32x4.zero();
-    for (int i = 0; i < 2; ++i)
-    {     sum+=currentTensor[i]*weightRow[i];   }
+    Float32x4 sum = currentTensor[0]*weightRow[0];
     outputTensor[r] = sum.z + sum.y + sum.x + sum.w;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
     currentTensor[0]+=Lbias_tfann_evaluate_1[0];
   for (int i = 0; i < 4; ++i)
-    outputTensor[i]=gelu(outputTensor[i]);
+    outputTensor[i]=lelu(outputTensor[i]);
   return currentTensor.buffer.asFloat32List(0,4).toList();
 }
 
+
+
+
+
+
+
+
+
 void main() {
   test('test xor', () async {
-    final xor_net = TfannNetwork.full([3, 5, 4], activation: ActivationFunctionType.gelu);
+    final xor_net = TfannNetwork.full([3, 4, 4], activation: ActivationFunctionType.lelu);
     //xor_net.layers[0].activationFunc = activationBell;
     List<TrainData> xor_data_m = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
@@ -85,13 +90,18 @@ void main() {
       TrainData.lists([1, -1, 1], [0, 0, 1, 1]),
       TrainData.lists([-1, 1, 1], [0, 0, 1, 1]),
     ];
-    List<TrainData> xor_data = xor_data0;
+    List<TrainData> xor_data = xor_data_m;
     xor_data.forEach((data) => print(
         "in: ${data.input.toList()} out: ${xor_net.feedForward(data.input).toList()} expected: ${data.output!.toList()}"));
     print("training...");
-    for (int i = 0; i < 5000; ++i) {
+    for (int i = 0; i < 4000; ++i) {
       xor_data.forEach((data) {
-        xor_net.train(data, learningRate: 0.04);
+        xor_net.train(data, learningRate: 0.03);
+      });
+    }
+    for (int i = 0; i < 1000; ++i) {
+      xor_data.forEach((data) {
+        xor_net.train(data, learningRate: 0.0001);
       });
     }
 
@@ -99,7 +109,7 @@ void main() {
     xor_data.forEach((data) => print(
         "in: ${data.input.toList()} out: ${xor_net.feedForward(data.input).toList()} expected: ${data.output!.toList()}"));
     print("errors:");
-    print(xor_data.map((e) => xor_net.calculateMeanAbsoluteError(e)));
+    print(xor_data.map((e) => xor_net.calculateMeanAbsoluteError(e)).toList());
     await xor_net.save("binary.net");
 
     var new_net = TfannNetwork.fromFile("binary.net")!;

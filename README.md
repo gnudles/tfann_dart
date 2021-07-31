@@ -2,7 +2,7 @@
 
 Tiny Fast Artificial Neural Network Library.
 
-It is based on specially crafted SIMD Matrix library.
+It uses internal tiny SIMD Matrix library.
 It can save network structure to file.
 It can generate pure dart code with no dependencies from a network.
 

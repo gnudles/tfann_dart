@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 
-enum ActivationFunctionType { logistic, tanh, abs, bell, gelu }
+import 'dart:typed_data';
+
+enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelu }
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -25,9 +27,14 @@ const SQRT_TWO_DIV_PI = 0.7978845608028653558798921198687;
 
 class ActivationFunction {
   const ActivationFunction(this.type, this.lowerLimit, this.upperLimit,
-      {required this.func, required this.derivative});
+      {required this.func,
+      required this.derivative,
+      this.funcSIMD,
+      this.derivativeSIMD});
   final double Function(double) func;
   final double Function(double) derivative;
+  final Float32x4 Function(Float32x4)? funcSIMD;
+  final Float32x4 Function(Float32x4)? derivativeSIMD;
   final ActivationFunctionType type;
   final double upperLimit;
   final double lowerLimit;
@@ -74,9 +81,23 @@ double absSigmoidDeriv(double x) {
   return 1 / (abs_plus_one * abs_plus_one);
 }
 
+final Float32x4 ones = Float32x4.splat(1);
+Float32x4 absSigmoidFuncX4(Float32x4 x) {
+  return x / (ones + x.abs());
+}
+
+Float32x4 absSigmoidDerivX4(Float32x4 x) {
+  Float32x4 abs_plus_one = (ones + x.abs());
+  return (abs_plus_one * abs_plus_one).reciprocal();
+}
+
 const ActivationFunction activationAbsSigmoid = ActivationFunction(
     ActivationFunctionType.abs, -1.0, 1.0,
-    func: absSigmoidFunc, derivative: absSigmoidDeriv);
+    func: absSigmoidFunc,
+    derivative: absSigmoidDeriv,
+    funcSIMD: absSigmoidFuncX4,
+    derivativeSIMD: absSigmoidDerivX4);
+
 const ActivationFunction activationTanh = ActivationFunction(
     ActivationFunctionType.tanh, -1.0, 1.0,
     func: tanh, derivative: tanhDeriv);
@@ -94,12 +115,30 @@ const ActivationFunction activationLogisticSigmoid = ActivationFunction(
     ActivationFunctionType.logistic, -1.0, 1.0,
     func: logisticFunc, derivative: logisticDeriv);
 
+double leluFunc(double x) {
+  if (x > 4) return 1 + 0.25 * x;
+  if (x > -2)
+    return 0.5 * x;
+  return 0.0625 * x - 0.875;
+}
+double leluDeriv(double x) {
+  if (x > 4) return 0.25;
+  if (x > -2)
+    return 0.5;
+  return 0.0625;
+}
+
+const ActivationFunction activationLELU = ActivationFunction(
+    ActivationFunctionType.lelu, double.negativeInfinity, double.infinity,
+    func: leluFunc, derivative: leluDeriv);
+
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.abs: activationAbsSigmoid,
   ActivationFunctionType.logistic: activationLogisticSigmoid,
   ActivationFunctionType.tanh: activationTanh,
   ActivationFunctionType.bell: activationBell,
   ActivationFunctionType.gelu: activationGELU,
+  ActivationFunctionType.lelu: activationLELU,
 };
 
 var activationTypeFromString = Map.fromEntries(
