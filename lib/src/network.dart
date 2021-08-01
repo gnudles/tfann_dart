@@ -45,8 +45,10 @@ class TfannLayer {
   FeedArtifacts createFeedArtifacts(FVector input) {
     FVector intermediateVector = (weights.multiplyVector(input)) + bias;
     return FeedArtifacts(
-        intermediateVector.applied(activationFunc.func, activationFunc.funcSIMD),
-        intermediateVector.applied(activationFunc.derivative, activationFunc.derivativeSIMD));
+        intermediateVector.applied(
+            activationFunc.func, activationFunc.funcSIMD),
+        intermediateVector.applied(
+            activationFunc.derivative, activationFunc.derivativeSIMD));
   }
 
   Map<String, dynamic> toJson() {
@@ -78,7 +80,7 @@ class TfannNetwork {
   }
 
   /// Train network with a single training pair, for a single epoch.
-  /// 
+  ///
   /// returns the propagated error of the first layer, which is good for chained networks.
   FVector train(TrainData data, {double learningRate = 0.04}) {
     FVector nextInputs = data.input;
@@ -118,12 +120,14 @@ class TfannNetwork {
     }
     return previousDelta;
   }
+
   /// Given a single training pair, calculate the network's mean-square-error.
   double calculateMeanSquareError(TrainData data) {
     assert(data.output != null);
     return (feedForward(data.input) - data.output!).squared().sumElements() /
         data.output!.nRows;
   }
+
   /// Given a single training pair, calculate the network's root-mean-square-error.
   double calculateRootMeanSquareError(TrainData data) {
     return sqrt(calculateMeanSquareError(data));
@@ -157,7 +161,7 @@ class TfannNetwork {
     }
     return null;
   }
-  
+
   String compile({String functionName = 'tfann_evaluate'}) {
     StringBuffer stringBuffer = StringBuffer();
     int inputSize = layers[0].weights.nColumns;
@@ -187,6 +191,10 @@ class TfannNetwork {
     if (activationsSet.contains(ActivationFunctionType.lelu))
       stringBuffer.write(
           "double lelu(double x) {  if (x > 4) return 1 + 0.25 * x;  if (x > -2) return 0.5 * x;  return 0.0625 * x - 0.875; }\n");
+    if (activationsSet.contains(ActivationFunctionType.slu)) {
+      stringBuffer.write(
+          "double slu(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}");
+    }
     layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
       weightsWidth = roundUp4(weightsWidth) ~/ 2;
@@ -239,38 +247,29 @@ class TfannNetwork {
       }
       stringBuffer.write(
           "    currentTensor[${biasDiv4 == 1 ? "0" : "i"}]+=Lbias_${functionName}_$i[${biasDiv4 == 1 ? "0" : "i"}];\n");
-      var currentX4Func = [
-          '',
-          '',
-          'absSigmoidX4',
-          '',
-          '',
-          ''
-        ][layer.activationFunc.type.index];
+      var currentX4Func =
+          ['', '', 'absSigmoidX4', '', '', '',''][layer.activationFunc.type.index];
       var currentFunc = [
-          'logisticSigmoid',
-          'tanh',
-          'absSigmoid',
-          'bell',
-          'gelu',
-          'lelu'
-        ][layer.activationFunc.type.index];
+        'logisticSigmoid',
+        'tanh',
+        'absSigmoid',
+        'bell',
+        'gelu',
+        'lelu',
+        'slu'
+      ][layer.activationFunc.type.index];
       if (currentX4Func.isNotEmpty) {
-        
         var actFull4 = layer.bias.length ~/ 4;
         var actRemain = layer.bias.length % 4;
         if (actFull4 > 0) {
           if (actFull4 > 1) {
             stringBuffer.write("  for (int i = 0; i < ${actFull4}; ++i)\n");
             stringBuffer.write(
-              "    currentTensor[i]=$currentX4Func(currentTensor[i]);\n");
-          }
-          else
-          {
+                "    currentTensor[i]=$currentX4Func(currentTensor[i]);\n");
+          } else {
             stringBuffer.write(
-              "  currentTensor[0]=$currentX4Func(currentTensor[0]);\n");
+                "  currentTensor[0]=$currentX4Func(currentTensor[0]);\n");
           }
-          
         }
         for (int i = 0; i < actRemain; ++i) {
           stringBuffer.write(
@@ -279,7 +278,8 @@ class TfannNetwork {
       } else {
         stringBuffer
             .write("  for (int i = 0; i < ${layer.bias.length}; ++i)\n");
-        stringBuffer.write("    outputTensor[i]=$currentFunc(outputTensor[i]);\n");
+        stringBuffer
+            .write("    outputTensor[i]=$currentFunc(outputTensor[i]);\n");
       }
     });
     stringBuffer.write(

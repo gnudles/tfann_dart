@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'dart:typed_data';
 
-enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelu }
+enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelu, slu }
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -117,20 +117,41 @@ const ActivationFunction activationLogisticSigmoid = ActivationFunction(
 
 double leluFunc(double x) {
   if (x > 4) return 1 + 0.25 * x;
-  if (x > -2)
-    return 0.5 * x;
+  if (x > -2) return 0.5 * x;
   return 0.0625 * x - 0.875;
 }
+
 double leluDeriv(double x) {
   if (x > 4) return 0.25;
-  if (x > -2)
-    return 0.5;
+  if (x > -2) return 0.5;
   return 0.0625;
 }
 
 const ActivationFunction activationLELU = ActivationFunction(
     ActivationFunctionType.lelu, double.negativeInfinity, double.infinity,
     func: leluFunc, derivative: leluDeriv);
+
+double sluFunc(double x) {
+  x += 0.45353;
+  if (x > 4) return 1 + 0.25 * x;
+  if (x > -2) {
+    var x2 = x * x;
+    var x3 = x2 * x;
+    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;
+  }
+  return 0.0625 * x - 0.875;
+}
+
+double sluDeriv(double x) {
+  x += 0.45353;
+  if (x > 4) return 0.25;
+  if (x > -2) return (-33/576)*x*x+(7/48)*x+(7/12);
+  return 0.0625;
+}
+
+const ActivationFunction activationSLU = ActivationFunction(
+    ActivationFunctionType.slu, double.negativeInfinity, double.infinity,
+    func: sluFunc, derivative: sluDeriv);
 
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.abs: activationAbsSigmoid,
@@ -139,6 +160,7 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.bell: activationBell,
   ActivationFunctionType.gelu: activationGELU,
   ActivationFunctionType.lelu: activationLELU,
+  ActivationFunctionType.slu: activationSLU,
 };
 
 var activationTypeFromString = Map.fromEntries(
