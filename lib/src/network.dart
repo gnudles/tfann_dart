@@ -188,12 +188,20 @@ class TfannNetwork {
     if (activationsSet.contains(ActivationFunctionType.gelu))
       stringBuffer.write(
           "double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}\n");
-    if (activationsSet.contains(ActivationFunctionType.lelu))
+    if (activationsSet.contains(ActivationFunctionType.lelq))
       stringBuffer.write(
-          "double lelu(double x) {  if (x > 4) return 1 + 0.25 * x;  if (x > -2) return 0.5 * x;  return 0.0625 * x - 0.875; }\n");
-    if (activationsSet.contains(ActivationFunctionType.slu)) {
+          "double lelq(double x) {  if (x > 4) return 1 + 0.25 * x;  if (x > -2) return 0.5 * x;  return 0.0625 * x - 0.875; }\n");
+    if (activationsSet.contains(ActivationFunctionType.slq)) {
       stringBuffer.write(
-          "double slu(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}");
+          "double slq(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}\n");
+      stringBuffer.write('''Float32x4 slqX4(Float32x4 x) {
+  x += Float32x4.splat(0.45353);
+  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
+  Int32x4 greater2 = x.greaterThan(Float32x4.splat(-2));
+  Float32x4 x2 = x * x;
+  Float32x4 x3 = x2 * x;
+  return greater4.select((x.scale(0.25) + Float32x4.splat(1)), greater2.select(x3.scale(-11 / 576)  + x2.scale(7 / 96)  + x.scale(7 / 12)  - Float32x4.splat(5 / 18), x.scale(0.0625)-Float32x4.splat(0.875)));
+}\n''');
     }
     layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
@@ -247,16 +255,23 @@ class TfannNetwork {
       }
       stringBuffer.write(
           "    currentTensor[${biasDiv4 == 1 ? "0" : "i"}]+=Lbias_${functionName}_$i[${biasDiv4 == 1 ? "0" : "i"}];\n");
-      var currentX4Func =
-          ['', '', 'absSigmoidX4', '', '', '',''][layer.activationFunc.type.index];
+      var currentX4Func = [
+        '',
+        '',
+        'absSigmoidX4',
+        '',
+        '',
+        '',
+        'slqX4'
+      ][layer.activationFunc.type.index];
       var currentFunc = [
         'logisticSigmoid',
         'tanh',
         'absSigmoid',
         'bell',
         'gelu',
-        'lelu',
-        'slu'
+        'lelq',
+        'slq'
       ][layer.activationFunc.type.index];
       if (currentX4Func.isNotEmpty) {
         var actFull4 = layer.bias.length ~/ 4;

@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'dart:typed_data';
 
-enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelu, slu }
+enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelq, slq }
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -115,43 +115,60 @@ const ActivationFunction activationLogisticSigmoid = ActivationFunction(
     ActivationFunctionType.logistic, -1.0, 1.0,
     func: logisticFunc, derivative: logisticDeriv);
 
-double leluFunc(double x) {
+double lelqFunc(double x) {
   if (x > 4) return 1 + 0.25 * x;
   if (x > -2) return 0.5 * x;
   return 0.0625 * x - 0.875;
 }
 
-double leluDeriv(double x) {
+double lelqDeriv(double x) {
   if (x > 4) return 0.25;
   if (x > -2) return 0.5;
   return 0.0625;
 }
 
-const ActivationFunction activationLELU = ActivationFunction(
-    ActivationFunctionType.lelu, double.negativeInfinity, double.infinity,
-    func: leluFunc, derivative: leluDeriv);
+const ActivationFunction activationLELQ = ActivationFunction(
+    ActivationFunctionType.lelq, double.negativeInfinity, double.infinity,
+    func: lelqFunc, derivative: lelqDeriv);
 
-double sluFunc(double x) {
+double slqFunc(double x) {
   x += 0.45353;
   if (x > 4) return 1 + 0.25 * x;
   if (x > -2) {
     var x2 = x * x;
     var x3 = x2 * x;
-    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;
+    return (-11 / 576) * x3 + (7 / 96) * x2 + (7 / 12) * x - 5 / 18;
   }
   return 0.0625 * x - 0.875;
 }
 
-double sluDeriv(double x) {
+double slqDeriv(double x) {
   x += 0.45353;
   if (x > 4) return 0.25;
-  if (x > -2) return (-33/576)*x*x+(7/48)*x+(7/12);
+  if (x > -2) return (-33 / 576) * x * x + (7 / 48) * x + (7 / 12);
   return 0.0625;
 }
 
-const ActivationFunction activationSLU = ActivationFunction(
-    ActivationFunctionType.slu, double.negativeInfinity, double.infinity,
-    func: sluFunc, derivative: sluDeriv);
+Float32x4 slqFuncSimd(Float32x4 x) {
+  x += Float32x4.splat(0.45353);
+  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
+  Int32x4 greater2 = x.greaterThan(Float32x4.splat(-2));
+  Float32x4 x2 = x * x;
+  Float32x4 x3 = x2 * x;
+  return greater4.select(x.scale(0.25) + Float32x4.splat(1), greater2.select(x3.scale(-11 / 576)  + x2.scale(7 / 96)  + x.scale(7 / 12)  - Float32x4.splat(5 / 18), x.scale(0.0625)-Float32x4.splat(0.875)));
+}
+
+Float32x4 slqDerivSimd(Float32x4 x) {
+  x += Float32x4.splat(0.45353);
+  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
+  Int32x4 greater2 = x.greaterThan(Float32x4.splat(-2));
+  Float32x4 x2 = x * x;
+  return greater4.select( Float32x4.splat(0.25), greater2.select(x2.scale(-33 / 576)  + x.scale(7 / 48)  + Float32x4.splat(7 / 12)  , Float32x4.splat(0.0625)));
+}
+
+const ActivationFunction activationSLQ = ActivationFunction(
+    ActivationFunctionType.slq, double.negativeInfinity, double.infinity,
+    func: slqFunc, derivative: slqDeriv, funcSIMD: slqFuncSimd, derivativeSIMD: slqDerivSimd);
 
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.abs: activationAbsSigmoid,
@@ -159,8 +176,8 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.tanh: activationTanh,
   ActivationFunctionType.bell: activationBell,
   ActivationFunctionType.gelu: activationGELU,
-  ActivationFunctionType.lelu: activationLELU,
-  ActivationFunctionType.slu: activationSLU,
+  ActivationFunctionType.lelq: activationLELQ,
+  ActivationFunctionType.slq: activationSLQ,
 };
 
 var activationTypeFromString = Map.fromEntries(
