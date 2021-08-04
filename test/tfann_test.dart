@@ -61,35 +61,35 @@ void main() {
         TfannNetwork.full([3, 4, 4], activation: ActivationFunctionType.slq);
     
     //xor_net.layers[0].activationFunc = activationBell;
-    List<TrainData> xor_data_m = [
+    List<TrainSetInputOutput> xor_data_m = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
        column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
       */
 
-      TrainData.lists([1, 1, -1], [-1, -1, 1, 1]),
-      TrainData.lists([1, -1, -1], [1, -1, 1, -1]),
-      TrainData.lists([-1, 1, -1], [1, -1, 1, -1]),
-      TrainData.lists([-1, -1, -1], [-1, -1, -1, -1]),
-      TrainData.lists([-1, -1, 1], [1, -1, 1, -1]),
-      TrainData.lists([1, 1, 1], [1, 1, 1, -1]),
-      TrainData.lists([1, -1, 1], [-1, -1, 1, 1]),
-      TrainData.lists([-1, 1, 1], [-1, -1, 1, 1]),
+      TrainSetInputOutput.lists([1, 1, -1], [-1, -1, 1, 1]),
+      TrainSetInputOutput.lists([1, -1, -1], [1, -1, 1, -1]),
+      TrainSetInputOutput.lists([-1, 1, -1], [1, -1, 1, -1]),
+      TrainSetInputOutput.lists([-1, -1, -1], [-1, -1, -1, -1]),
+      TrainSetInputOutput.lists([-1, -1, 1], [1, -1, 1, -1]),
+      TrainSetInputOutput.lists([1, 1, 1], [1, 1, 1, -1]),
+      TrainSetInputOutput.lists([1, -1, 1], [-1, -1, 1, 1]),
+      TrainSetInputOutput.lists([-1, 1, 1], [-1, -1, 1, 1]),
     ];
-    List<TrainData> xor_data0 = [
+    List<TrainSetInputOutput> xor_data0 = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
        column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
       */
 
-      TrainData.lists([1, 1, -1], [0, 0, 1, 1]),
-      TrainData.lists([1, -1, -1], [1, 0, 1, 0]),
-      TrainData.lists([-1, 1, -1], [1, 0, 1, 0]),
-      TrainData.lists([-1, -1, -1], [0, 0, 0, 0]),
-      TrainData.lists([-1, -1, 1], [1, 0, 1, 0]),
-      TrainData.lists([1, 1, 1], [1, 1, 1, 0]),
-      TrainData.lists([1, -1, 1], [0, 0, 1, 1]),
-      TrainData.lists([-1, 1, 1], [0, 0, 1, 1]),
+      TrainSetInputOutput.lists([1, 1, -1], [0, 0, 1, 1]),
+      TrainSetInputOutput.lists([1, -1, -1], [1, 0, 1, 0]),
+      TrainSetInputOutput.lists([-1, 1, -1], [1, 0, 1, 0]),
+      TrainSetInputOutput.lists([-1, -1, -1], [0, 0, 0, 0]),
+      TrainSetInputOutput.lists([-1, -1, 1], [1, 0, 1, 0]),
+      TrainSetInputOutput.lists([1, 1, 1], [1, 1, 1, 0]),
+      TrainSetInputOutput.lists([1, -1, 1], [0, 0, 1, 1]),
+      TrainSetInputOutput.lists([-1, 1, 1], [0, 0, 1, 1]),
     ];
-    List<TrainData> xor_data = xor_data_m;
+    List<TrainSetInputOutput> xor_data = xor_data_m;
     xor_data.forEach((data) => print(
         "in: ${data.input.toList()} out: ${xor_net.feedForward(data.input).toList()} expected: ${data.output!.toList()}"));
     print("training...");

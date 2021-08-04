@@ -18,7 +18,14 @@ class RandomSupply {
 class FeedArtifacts {
   final FVector activation;
   final FVector derivative;
-  FeedArtifacts(this.activation, this.derivative);
+  const FeedArtifacts(this.activation, this.derivative);
+}
+
+class TrainArtifacts {
+  /// defined as Network Output minus Expected Output.
+  final FVector forwardError;
+  final FVector propagatedError;
+  const TrainArtifacts(this.forwardError, this.propagatedError);
 }
 
 class TfannLayer {
@@ -37,6 +44,7 @@ class TfannLayer {
         weights = FLeftMatrix.fromList(List.generate(outputs,
             (o) => List.generate(inputs, (i) => RandomSupply.nextReal))),
         activationFunc = mapActivationFunction[activationFuncType]!;
+
   FVector feedForward(FVector input) {
     return ((weights.multiplyVector(input)) + bias)
       ..apply(activationFunc.func, activationFunc.funcSIMD);
@@ -65,7 +73,7 @@ class TfannNetwork {
   List<TfannLayer> layers = [];
   TfannNetwork(this.layers);
   TfannNetwork.full(List<int> layersDefinition,
-      {ActivationFunctionType activation = ActivationFunctionType.abs}) {
+      {ActivationFunctionType activation = ActivationFunctionType.slq}) {
     int nextInputs = layersDefinition[0];
 
     layersDefinition.skip(1).forEach((outputs) {
@@ -82,8 +90,8 @@ class TfannNetwork {
   /// Train network with a single training pair, for a single epoch.
   ///
   /// returns the propagated error of the first layer, which is good for chained networks.
-  FVector train(TrainData data, {double learningRate = 0.04}) {
-    FVector nextInputs = data.input;
+  TrainArtifacts train(TrainSet trainSet, {double learningRate = 0.04}) {
+    FVector nextInputs = trainSet.input;
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
     ];
@@ -93,12 +101,11 @@ class TfannNetwork {
     }
     FVector netOutput = nextInputs;
     FVector netErrors;
-    if (data.output != null)
-      netErrors = netOutput - data.output!;
+    if (trainSet is TrainSetInputOutput) {
+      netErrors = netOutput - (trainSet as TrainSetInputOutput).output;
+    }
     else
-      netErrors = data.errors!;
-    /*Vector meanSquareError =
-        netErrors.mapToVector((value) => 0.5 * value * value);*/
+      netErrors = (trainSet as TrainSetInputError).error;
     FVector previousDelta = netErrors;
     List<FVector> layerDelta = [];
     for (int i = layers.length - 1; i >= 0; --i) {
@@ -118,32 +125,38 @@ class TfannNetwork {
         ..scale(learningRate);
       layerDelta.removeLast();
     }
-    return previousDelta;
+    return TrainArtifacts(netErrors, previousDelta);
   }
 
   /// Given a single training pair, calculate the network's mean-square-error.
-  double calculateMeanSquareError(TrainData data) {
-    assert(data.output != null);
-    return (feedForward(data.input) - data.output!).squared().sumElements() /
-        data.output!.nRows;
+  double calculateMeanSquareError(TrainSetInputOutput data) {
+
+    return (feedForward(data.input) - data.output).squared().sumElements() /
+        data.output.nRows;
   }
 
   /// Given a single training pair, calculate the network's root-mean-square-error.
-  double calculateRootMeanSquareError(TrainData data) {
+  double calculateRootMeanSquareError(TrainSetInputOutput data) {
     return sqrt(calculateMeanSquareError(data));
   }
 
   /// Given a single training pair, calculate the network's mean-absolute-error.
-  double calculateMeanAbsoluteError(TrainData data) {
-    assert(data.output != null);
-    return (feedForward(data.input) - data.output!).abs().sumElements() /
-        data.output!.nRows;
+  double calculateMeanAbsoluteError(TrainSetInputOutput data) {
+    return (feedForward(data.input) - data.output).abs().sumElements() /
+        data.output.nRows;
+  }
+
+  /// Returns Json object.
+  ///
+  /// To convert it to Json string, use 'jsonEncode'
+  Object toJson() {
+    return layers.map((l) => l.toJson()).toList();
   }
 
   /// Saves the network to file.
   Future<void> save(String filename) async {
     var sink = File(filename).openWrite(mode: FileMode.writeOnly);
-    sink.write(jsonEncode(layers.map((l) => l.toJson()).toList()));
+    sink.write(jsonEncode(toJson()));
 
     // Close the IOSink to free system resources.
     await sink.flush();
@@ -152,16 +165,24 @@ class TfannNetwork {
 
   static TfannNetwork? fromFile(String filename) {
     String jsonString = File(filename).readAsStringSync();
-    var net = jsonDecode(jsonString);
-    assert(net is List);
-    assert((net as List).isNotEmpty);
-    if (net is List) {
-      assert(net.every((element) => element is Map));
-      return TfannNetwork(net.map((e) => TfannLayer.fromJsonMap(e)).toList());
+    return fromJson(jsonDecode(jsonString));
+  }
+
+  /// Creates TfannNetwork from Json object.
+  ///
+  /// Use 'jsonDecode' to convert a Json into Object.
+  static TfannNetwork? fromJson(dynamic jsonObject) {
+    assert(jsonObject is List);
+    assert((jsonObject as List).isNotEmpty);
+    if (jsonObject is List) {
+      assert(jsonObject.every((element) => element is Map));
+      return TfannNetwork(
+          jsonObject.map((e) => TfannLayer.fromJsonMap(e)).toList());
     }
     return null;
   }
 
+  /// Returns a pure dart code that represents the function of this network.
   String compile({String functionName = 'tfann_evaluate'}) {
     StringBuffer stringBuffer = StringBuffer();
     int inputSize = layers[0].weights.nColumns;

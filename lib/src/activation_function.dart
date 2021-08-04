@@ -72,6 +72,10 @@ const ActivationFunction activationBell = ActivationFunction(
     ActivationFunctionType.bell, 0.0, 1.0,
     func: bellFunc, derivative: bellDeriv);
 
+//fast bell
+//0.4*(1-4*x*x)/(1+x*x)+0.6
+//or
+//0.2*(1-16*x*x)/(1+4*x*x)+0.8
 double absSigmoidFunc(double x) {
   return x / (1 + x.abs());
 }
