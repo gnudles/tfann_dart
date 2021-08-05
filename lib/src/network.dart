@@ -12,7 +12,11 @@ import 'linalg.dart';
 
 class RandomSupply {
   static final Random rng = Random();
-  static double get nextReal => rng.nextDouble() * 2 - 1;
+  static double  nextBias() => rng.nextDouble() - 0.5;
+  static double nextWeight() {
+    var x = rng.nextDouble() * 0.8 + 0.2;
+    return rng.nextBool() ? x : -x;
+  }
 }
 
 class FeedArtifacts {
@@ -40,9 +44,9 @@ class TfannLayer {
 
   TfannLayer(int inputs, int outputs, ActivationFunctionType activationFuncType)
       : bias = FVector.fromList(
-            List.generate(outputs, (index) => RandomSupply.nextReal)),
+            List.generate(outputs, (index) => RandomSupply.nextBias())),
         weights = FLeftMatrix.fromList(List.generate(outputs,
-            (o) => List.generate(inputs, (i) => RandomSupply.nextReal))),
+            (o) => List.generate(inputs, (i) => RandomSupply.nextWeight()))),
         activationFunc = mapActivationFunction[activationFuncType]!;
 
   FVector feedForward(FVector input) {
@@ -103,8 +107,7 @@ class TfannNetwork {
     FVector netErrors;
     if (trainSet is TrainSetInputOutput) {
       netErrors = netOutput - (trainSet as TrainSetInputOutput).output;
-    }
-    else
+    } else
       netErrors = (trainSet as TrainSetInputError).error;
     FVector previousDelta = netErrors;
     List<FVector> layerDelta = [];
@@ -130,7 +133,6 @@ class TfannNetwork {
 
   /// Given a single training pair, calculate the network's mean-square-error.
   double calculateMeanSquareError(TrainSetInputOutput data) {
-
     return (feedForward(data.input) - data.output).squared().sumElements() /
         data.output.nRows;
   }
@@ -218,10 +220,21 @@ class TfannNetwork {
       stringBuffer.write('''Float32x4 slqX4(Float32x4 x) {
   x += Float32x4.splat(0.45353);
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
-  Int32x4 greater2 = x.greaterThan(Float32x4.splat(-2));
   Float32x4 x2 = x * x;
+  Float32x4 branch1Result = x.scale(0.25) + Float32x4.splat(1);
   Float32x4 x3 = x2 * x;
-  return greater4.select((x.scale(0.25) + Float32x4.splat(1)), greater2.select(x3.scale(-11 / 576)  + x2.scale(7 / 96)  + x.scale(7 / 12)  - Float32x4.splat(5 / 18), x.scale(0.0625)-Float32x4.splat(0.875)));
+
+  Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
+  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);  
+  
+  return greater4.select(
+      branch1Result,
+      lessThanMinus2.select(
+          branch3Result,
+          x3.scale(-11 / 576) +
+              x2.scale(7 / 96) +
+              x.scale(7 / 12) -
+              Float32x4.splat(5 / 18)));
 }\n''');
     }
     layers.asMap().forEach((i, layer) {

@@ -1,6 +1,6 @@
 name: tfann
 description: Tiny Fast Artificial Neural Network Library (Based on SIMD computations)
-version: 0.1.4
+version: 0.2.0
 repository: https://github.com/gnudles/tfann_dart
 
 environment:
