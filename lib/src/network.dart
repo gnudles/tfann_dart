@@ -12,7 +12,7 @@ import 'linalg.dart';
 
 class RandomSupply {
   static final Random rng = Random();
-  static double  nextBias() => rng.nextDouble() - 0.5;
+  static double nextBias() => rng.nextDouble() - 0.5;
   static double nextWeight() {
     var x = rng.nextDouble() * 0.8 + 0.2;
     return rng.nextBool() ? x : -x;
@@ -94,7 +94,8 @@ class TfannNetwork {
   /// Train network with a single training pair, for a single epoch.
   ///
   /// returns the propagated error of the first layer, which is good for chained networks.
-  TrainArtifacts train(TrainSet trainSet, {double learningRate = 0.04}) {
+  TrainArtifacts train(TrainSet trainSet,
+      {double learningRate = 0.04, double maxError = 0.0}) {
     FVector nextInputs = trainSet.input;
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
@@ -109,7 +110,15 @@ class TfannNetwork {
       netErrors = netOutput - (trainSet as TrainSetInputOutput).output;
     } else
       netErrors = (trainSet as TrainSetInputError).error;
-    FVector previousDelta = netErrors;
+    FVector normalizedErrors = netErrors;
+    if (maxError > 0.0) {
+      double norm = normalizedErrors.squared().sumElements();
+      if (norm > maxError) {
+        normalizedErrors = netErrors.scaled(maxError / norm);
+      }
+    }
+
+    FVector previousDelta = normalizedErrors;
     List<FVector> layerDelta = [];
     for (int i = layers.length - 1; i >= 0; --i) {
       FVector currentDelta = (artifacts[i + 1].derivative * previousDelta);
