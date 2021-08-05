@@ -112,7 +112,8 @@ class TfannNetwork {
       netErrors = (trainSet as TrainSetInputError).error;
     FVector normalizedErrors = netErrors;
     if (maxError > 0.0) {
-      double norm = normalizedErrors.squared().sumElements();
+      double norm = normalizedErrors.abs().largestElement();
+      //double norm = normalizedErrors.squared().sumElements();
       if (norm > maxError) {
         normalizedErrors = netErrors.scaled(maxError / norm);
       }

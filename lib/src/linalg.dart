@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'dart:math' as math;
 
 class FVector {
   final Float32x4List columnData;
@@ -86,10 +87,24 @@ class FVector {
       newVec.columnData[i] = columnData[i].abs();
     return newVec;
   }
+  double largestElement()
+  {
+    Float32x4 maxQuant = columnData[0];
+    for (int i = 1; i < columnData.length; ++i)
+     maxQuant = maxQuant.max(columnData[i]);
+    return math.max(math.max(maxQuant.w, maxQuant.x), math.max(maxQuant.y, maxQuant.z));
+  }
+  double smallestElement()
+  {
+    Float32x4 minQuant = columnData[0];
+    for (int i = 1; i < columnData.length; ++i)
+     minQuant = minQuant.min(columnData[i]);
+    return math.min(math.min(minQuant.w, minQuant.x), math.min(minQuant.y, minQuant.z));
+  }
 
   double sumElements() {
-    Float32x4 sum = Float32x4.zero();
-    for (int i = 0; i < columnData.length; ++i) sum += columnData[i];
+    Float32x4 sum = columnData[0];
+    for (int i = 1; i < columnData.length; ++i) sum += columnData[i];
     return sum.w + sum.x + sum.y + sum.z;
   }
 
