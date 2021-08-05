@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 class FVector {
   final Float32x4List columnData;
-  int nRows;
+  final int nRows;
   int get length => nRows;
   FVector.zero(this.nRows) : columnData = Float32x4List((nRows + 3) ~/ 4);
   FVector.fromList(List<double> list)
@@ -13,9 +13,21 @@ class FVector {
             .buffer
             .asFloat32x4List();
   FVector.fromBuffer(this.nRows, this.columnData);
-  void trim(int length) {
-    assert(length <= nRows);
-    nRows = length;
+  FVector slice(int offset, int length) {
+    FVector newVec = FVector.zero(length);
+    assert(offset + length <= nRows && offset >= 0 && length > 0);
+    var dest32 = newVec.columnData.buffer.asInt32List();
+    var source32 = columnData.buffer.asInt32List(offset * 4);
+    int start = 0;
+    if (offset % 4 == 0) {
+      for (int i = 0; i < length ~/ 4; ++i)
+        newVec.columnData[i] = columnData[i + offset ~/ 4];
+      start = length - (length % 4);
+    }
+    for (int i = start; i < length; ++i) {
+      dest32[i] = source32[i];
+    }
+    return newVec;
   }
 
   FVector operator *(FVector other) {
