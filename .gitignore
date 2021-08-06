@@ -9,6 +9,9 @@
 .history
 .svn/
 /papers/
+/lib/src/fdlibm.dart
+
+*.net
 
 # IntelliJ related
 *.iml
