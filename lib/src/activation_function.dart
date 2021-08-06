@@ -2,7 +2,7 @@ import 'dart:math' as math;
 
 import 'dart:typed_data';
 
-enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelq, slq }
+enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelq, slq, lliq }
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -119,21 +119,38 @@ const ActivationFunction activationLogisticSigmoid = ActivationFunction(
     ActivationFunctionType.logistic, -1.0, 1.0,
     func: logisticFunc, derivative: logisticDeriv);
 
+double lliqFunc(double x) {
+  var qx = x * 0.25;
+  if (x >= 0) return qx;
+  if (x > -1.5) return qx*qx + qx;
+  return 0.0625 * x - 0.140625;
+}
+double lliqDeriv(double x) {
+  
+  if (x >= 0) return 0.25;
+  if (x > -1.5) return x*0.125 + 0.25;
+  return 0.0625;
+}
+const ActivationFunction activationLLIQ = ActivationFunction(
+    ActivationFunctionType.lliq, double.negativeInfinity, double.infinity,
+    func: lliqFunc,
+    derivative: lliqDeriv,
+);
+
 double lelqFunc(double x) {
   if (x > 4) return 1 + 0.25 * x;
   if (x > -2) return 0.5 * x;
   return 0.0625 * x - 0.875;
 }
+
 Float32x4 lelqFuncSimd(Float32x4 x) {
-  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4)); 
+  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Float32x4 branch1Result = x.scale(0.25) + Float32x4.splat(1);
   Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
-  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);  
-  
+  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);
+
   return greater4.select(
-      branch1Result,
-      lessThanMinus2.select(
-          branch3Result,x.scale(0.5)));
+      branch1Result, lessThanMinus2.select(branch3Result, x.scale(0.5)));
 }
 
 double lelqDeriv(double x) {
@@ -143,19 +160,20 @@ double lelqDeriv(double x) {
 }
 
 Float32x4 lelqDerivSimd(Float32x4 x) {
-  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4)); 
-  
+  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
+
   Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
-  
-  return greater4.select(
-      Float32x4.splat(0.25),
-      lessThanMinus2.select(
-          Float32x4.splat(0.0625),Float32x4.splat(0.5)));
+
+  return greater4.select(Float32x4.splat(0.25),
+      lessThanMinus2.select(Float32x4.splat(0.0625), Float32x4.splat(0.5)));
 }
 
 const ActivationFunction activationLELQ = ActivationFunction(
     ActivationFunctionType.lelq, double.negativeInfinity, double.infinity,
-    func: lelqFunc, derivative: lelqDeriv, funcSIMD:lelqFuncSimd, derivativeSIMD: lelqDerivSimd);
+    func: lelqFunc,
+    derivative: lelqDeriv,
+    funcSIMD: lelqFuncSimd,
+    derivativeSIMD: lelqDerivSimd);
 
 double slqFunc(double x) {
   x += 0.45353;
@@ -179,13 +197,13 @@ Float32x4 slqFuncSimd(Float32x4 x) {
   x += Float32x4.splat(0.45353);
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Float32x4 x2 = x * x;
-  
+
   Float32x4 branch1Result = x.scale(0.25) + Float32x4.splat(1);
   Float32x4 x3 = x2 * x;
 
   Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
-  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);  
-  
+  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);
+
   return greater4.select(
       branch1Result,
       lessThanMinus2.select(
@@ -196,18 +214,24 @@ Float32x4 slqFuncSimd(Float32x4 x) {
               Float32x4.splat(5 / 18)));
 }
 
-
 Float32x4 slqDerivSimd(Float32x4 x) {
   x += Float32x4.splat(0.45353);
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Int32x4 greater2 = x.greaterThan(Float32x4.splat(-2));
   Float32x4 x2 = x * x;
-  return greater4.select( Float32x4.splat(0.25), greater2.select(x2.scale(-33 / 576)  + x.scale(7 / 48)  + Float32x4.splat(7 / 12)  , Float32x4.splat(0.0625)));
+  return greater4.select(
+      Float32x4.splat(0.25),
+      greater2.select(
+          x2.scale(-33 / 576) + x.scale(7 / 48) + Float32x4.splat(7 / 12),
+          Float32x4.splat(0.0625)));
 }
 
 const ActivationFunction activationSLQ = ActivationFunction(
     ActivationFunctionType.slq, double.negativeInfinity, double.infinity,
-    func: slqFunc, derivative: slqDeriv, funcSIMD: slqFuncSimd, derivativeSIMD: slqDerivSimd);
+    func: slqFunc,
+    derivative: slqDeriv,
+    funcSIMD: slqFuncSimd,
+    derivativeSIMD: slqDerivSimd);
 
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.abs: activationAbsSigmoid,
@@ -217,6 +241,7 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.gelu: activationGELU,
   ActivationFunctionType.lelq: activationLELQ,
   ActivationFunctionType.slq: activationSLQ,
+  ActivationFunctionType.lliq: activationLLIQ,
 };
 
 var activationTypeFromString = Map.fromEntries(

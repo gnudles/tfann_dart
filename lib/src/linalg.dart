@@ -38,6 +38,18 @@ class FVector {
       newVec.columnData[i] = columnData[i] * other.columnData[i];
     return newVec;
   }
+  /// Checks if two vectors are identical.
+  bool equals(FVector other) {
+    if (other.nRows != nRows) return false;
+    Int32x4 result;
+    var side1 = columnData.buffer.asInt32x4List();
+    var side2 = other.columnData.buffer.asInt32x4List();
+    result = side1[0] ^ side2[0];
+    for (int i = 1; i < side1.length; ++i) {
+      result |= side1[i] ^ side2[i];
+    }
+    return ((result.x | result.y | result.z | result.w) == 0);
+  }
 
   FVector scaled(double factor) {
     FVector newVec = FVector.zero(nRows);
@@ -87,25 +99,27 @@ class FVector {
       newVec.columnData[i] = columnData[i].abs();
     return newVec;
   }
-  double largestElement()
-  {
-    Float32x4 maxQuant = columnData[0];
-    for (int i = 1; i < columnData.length; ++i)
-     maxQuant = maxQuant.max(columnData[i]);
-    return math.max(math.max(maxQuant.w, maxQuant.x), math.max(maxQuant.y, maxQuant.z));
+
+  double largestElement() {
+    Float32x4 maxQuant = columnData.last.shuffle([Float32x4.xyzw,Float32x4.xxxx,Float32x4.xyyy,Float32x4.xyzz][nRows%4]);
+    for (int i = 0; i < columnData.length - 1; ++i)
+      maxQuant = maxQuant.max(columnData[i]);
+    return math.max(
+        math.max(maxQuant.x, maxQuant.y), math.max(maxQuant.z, maxQuant.w));
   }
-  double smallestElement()
-  {
-    Float32x4 minQuant = columnData[0];
-    for (int i = 1; i < columnData.length; ++i)
-     minQuant = minQuant.min(columnData[i]);
-    return math.min(math.min(minQuant.w, minQuant.x), math.min(minQuant.y, minQuant.z));
+
+  double smallestElement() {
+    Float32x4 minQuant = columnData.last.shuffle([Float32x4.xyzw,Float32x4.xxxx,Float32x4.xyyy,Float32x4.xyzz][nRows%4]);
+    for (int i = 0; i < columnData.length - 1; ++i)
+      minQuant = minQuant.min(columnData[i]);
+    return math.min(
+        math.min(minQuant.x, minQuant.y), math.min(minQuant.z, minQuant.w));
   }
 
   double sumElements() {
     Float32x4 sum = columnData[0];
     for (int i = 1; i < columnData.length; ++i) sum += columnData[i];
-    return sum.w + sum.x + sum.y + sum.z;
+    return  sum.x + sum.y + sum.z + sum.w;
   }
 
   FVector operator +(FVector other) {
@@ -226,7 +240,7 @@ class FLeftMatrix {
       for (int j = 0; j < currentRow.length; ++j) {
         sum = sum + (currentRow[j] * vec.columnData[j]);
       }
-      float32list[i] = sum.w + sum.x + sum.y + sum.z;
+      float32list[i] = sum.x + sum.y + sum.z + sum.w;
     }
     return FVector.fromBuffer(this.nRows, float32list.buffer.asFloat32x4List());
   }
@@ -243,7 +257,7 @@ class FLeftMatrix {
         for (int i = 0; i < leftRow.length; ++i) {
           sum += leftRow[i] * rightColumn[i];
         }
-        resultRow[c] = sum.w + sum.x + sum.y + sum.z;
+        resultRow[c] = sum.x + sum.y + sum.z + sum.w;
       }
     }
     return result;

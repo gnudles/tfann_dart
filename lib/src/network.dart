@@ -247,6 +247,15 @@ class TfannNetwork {
               Float32x4.splat(5 / 18)));
 }\n''');
     }
+    if (activationsSet.contains(ActivationFunctionType.lliq)) {
+      stringBuffer.write('''double lliq(double x) {
+  var qx = x * 0.25;
+  if (x >= 0) return qx;
+  if (x > -1.5) return qx * qx + qx;
+  return 0.0625 * x - 0.140625;
+}''');
+    }
+
     layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
       weightsWidth = roundUp4(weightsWidth) ~/ 2;
@@ -290,7 +299,7 @@ class TfannNetwork {
             "    Float32x4 sum = Float32x4.zero();\n    for (int i = 0; i < $columns4; ++i)\n    {     sum+=currentTensor[i]*weightRow[i];   }\n");
       }
       stringBuffer.write(
-          "    outputTensor[r] = sum.z ${layer.weights.nColumns >= 2 ? '+ sum.y' : ''} ${layer.weights.nColumns >= 3 ? '+ sum.x' : ''} ${layer.weights.nColumns >= 4 ? '+ sum.w' : ''};\n  }\n");
+          "    outputTensor[r] = sum.x ${layer.weights.nColumns >= 2 ? '+ sum.y' : ''} ${layer.weights.nColumns >= 3 ? '+ sum.z' : ''} ${layer.weights.nColumns >= 4 ? '+ sum.w' : ''};\n  }\n");
       stringBuffer
           .write("  currentTensor = outputTensor.buffer.asFloat32x4List();\n");
       int biasDiv4 = (layer.bias.length + 3) ~/ 4;
@@ -306,7 +315,8 @@ class TfannNetwork {
         '',
         '',
         '',
-        'slqX4'
+        'slqX4',
+        ''
       ][layer.activationFunc.type.index];
       var currentFunc = [
         'logisticSigmoid',
@@ -315,7 +325,8 @@ class TfannNetwork {
         'bell',
         'gelu',
         'lelq',
-        'slq'
+        'slq',
+        'lliq'
       ][layer.activationFunc.type.index];
       if (currentX4Func.isNotEmpty) {
         var actFull4 = layer.bias.length ~/ 4;

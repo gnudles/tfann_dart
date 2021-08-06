@@ -9,23 +9,24 @@ It can generate pure dart code with no dependencies from a network.
 ## Getting Started
 
 typical usage:
-```
+
+```dart
 import 'package:tfann/tfann.dart';
 
 ...
 
-List<TrainData> xor_data = [
+List<TrainSetInputOutput> xor_data = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
        column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
       */
-      TrainData.lists([-1, -1, -1], [0, 0, 0, 0]),
-      TrainData.lists([1, 1, -1], [0, 0, 1, 1]),
-      TrainData.lists([1, -1, -1], [1, 0, 1, 0]),
-      TrainData.lists([-1, 1, -1], [1, 0, 1, 0]),
-      TrainData.lists([-1, -1, 1], [1, 0, 1, 0]),
-      TrainData.lists([1, 1, 1], [1, 1, 1, 0]),
-      TrainData.lists([1, -1, 1], [0, 0, 1, 1]),
-      TrainData.lists([-1, 1, 1], [0, 0, 1, 1]),
+      TrainSetInputOutput.lists([-1, -1, -1], [0, 0, 0, 0]),
+      TrainSetInputOutput.lists([1, 1, -1], [0, 0, 1, 1]),
+      TrainSetInputOutput.lists([1, -1, -1], [1, 0, 1, 0]),
+      TrainSetInputOutput.lists([-1, 1, -1], [1, 0, 1, 0]),
+      TrainSetInputOutput.lists([-1, -1, 1], [1, 0, 1, 0]),
+      TrainSetInputOutput.lists([1, 1, 1], [1, 1, 1, 0]),
+      TrainSetInputOutput.lists([1, -1, 1], [0, 0, 1, 1]),
+      TrainSetInputOutput.lists([-1, 1, 1], [0, 0, 1, 1]),
     ];
 
 final xor_net =
@@ -36,11 +37,13 @@ xor_data.forEach((data) => print(
         "in: ${data.input.toList()} out: ${xor_net.feedForward(data.input).toList()} expected: ${data.output.toList()}"));
 
 // train network
+// train method takes a single TrainSet and runs it only once.
 for (int i = 0; i < 7000; ++i) {
       xor_data.forEach((data) {
         xor_net.train(data, learningRate: 0.06);
       });
 }
+
 
 print("after training...");
 
@@ -55,13 +58,13 @@ xor_data.forEach((data) => print(
 
 To save the network:
 
-```
+```dart
 await xor_net.save("binary.net");
 ```
 
 To load the network:
 
-```
+```dart
 var xor_net = TfannNetwork.fromFile("binary.net")!;
 ```
 
@@ -70,12 +73,14 @@ You may also compile the network into pure dart code. It is very good for produc
 The produced code have no dependencies at all, even not this package.
 
 Usage:
-```
+
+```dart
 print(xor_net.compile());
 ```
 
 Output:
-```
+
+```dart
 import 'dart:typed_data';
 import 'dart:math';
 
@@ -100,7 +105,7 @@ List<double> tfann_evaluate(List<double> inData)
   {
     Float32x4List weightRow = Lweight_tfann_evaluate_0[r];
     Float32x4 sum = currentTensor[0]*weightRow[0];
-    outputTensor[r] = sum.z + sum.y + sum.x ;
+    outputTensor[r] = sum.x + sum.y + sum.z ;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
   for (int i = 0; i < 2; ++i)
@@ -114,7 +119,7 @@ List<double> tfann_evaluate(List<double> inData)
     Float32x4 sum = Float32x4.zero();
     for (int i = 0; i < 2; ++i)
     {     sum+=currentTensor[i]*weightRow[i];   }
-    outputTensor[r] = sum.z + sum.y + sum.x + sum.w;
+    outputTensor[r] = sum.x + sum.y + sum.z + sum.w;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
     currentTensor[0]+=Lbias_tfann_evaluate_1[0];
@@ -123,3 +128,12 @@ List<double> tfann_evaluate(List<double> inData)
   return currentTensor.buffer.asFloat32List(0,4).toList();
 }
 ```
+
+## Tips
+
+The train method returns both the forward error (before changing the weights) and the back-propagated error.
+You can use the back-propagated error in cases of chaining networks (like RNN or LSTM which not included here).
+In these case, you would need to train the network with set of Input and Error. use TrainSetInputError for this case.
+You can also use the back-propagated error to create what's called "deep fake" or "deep dream".
+
+If you get NaN in your weights, then you have exploding gradient, try setting propErrorLimit (one of train arguments) to a small value (sometimes small as 0.01).
