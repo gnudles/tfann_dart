@@ -11,7 +11,7 @@ void main() {
   group('TfannNetwork', () {
     final Random r = Random();
     final bitwiseNN =
-        TfannNetwork.full([3, 3, 4], activation: ActivationFunctionType.lelq);
+        TfannNetwork.full([3, 3, 4], activation: ActivationFunctionType.uscls);
     List<TrainSetInputOutput> bitwiseTrainSets = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
        column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
@@ -108,7 +108,7 @@ void main(_, SendPort port) {
   return;
   test('test xor', () async {
     final xor_net =
-        TfannNetwork.full([3, 4, 4], activation: ActivationFunctionType.slq);
+        TfannNetwork.full([3, 4, 4], activation: ActivationFunctionType.uscsls);
 
     //xor_net.layers[0].activationFunc = activationBell;
     List<TrainSetInputOutput> xor_data_m = [

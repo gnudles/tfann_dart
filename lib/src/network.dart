@@ -77,7 +77,7 @@ class TfannNetwork {
   List<TfannLayer> layers = [];
   TfannNetwork(this.layers);
   TfannNetwork.full(List<int> layersDefinition,
-      {ActivationFunctionType activation = ActivationFunctionType.slq}) {
+      {ActivationFunctionType activation = ActivationFunctionType.uscsls}) {
     int nextInputs = layersDefinition[0];
 
     layersDefinition.skip(1).forEach((outputs) {
@@ -95,7 +95,7 @@ class TfannNetwork {
   ///
   /// returns the propagated error of the first layer, which is good for chained networks.
   TrainArtifacts train(TrainSet trainSet,
-      {double learningRate = 0.04, double maxError = 0.0}) {
+      {double learningRate = 0.04, double propErrorLimit = 0.0}) {
     FVector nextInputs = trainSet.input;
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
@@ -111,11 +111,11 @@ class TfannNetwork {
     } else
       netErrors = (trainSet as TrainSetInputError).error;
     FVector normalizedErrors = netErrors;
-    if (maxError > 0.0) {
+    if (propErrorLimit > 0.0) {
       double norm = normalizedErrors.abs().largestElement();
       //double norm = normalizedErrors.squared().sumElements();
-      if (norm > maxError) {
-        normalizedErrors = netErrors.scaled(maxError / norm);
+      if (norm > propErrorLimit) {
+        normalizedErrors = netErrors.scaled(propErrorLimit / norm);
       }
     }
 
@@ -167,8 +167,9 @@ class TfannNetwork {
 
   /// Saves the network to file.
   Future<void> save(String filename) async {
+    var jsonString = jsonEncode(toJson());
     var sink = File(filename).openWrite(mode: FileMode.writeOnly);
-    sink.write(jsonEncode(toJson()));
+    sink.write(jsonString);
 
     // Close the IOSink to free system resources.
     await sink.flush();
@@ -221,13 +222,13 @@ class TfannNetwork {
     if (activationsSet.contains(ActivationFunctionType.gelu))
       stringBuffer.write(
           "double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}\n");
-    if (activationsSet.contains(ActivationFunctionType.lelq))
+    if (activationsSet.contains(ActivationFunctionType.uscls))
       stringBuffer.write(
-          "double lelq(double x) {  if (x > 4) return 1 + 0.25 * x;  if (x > -2) return 0.5 * x;  return 0.0625 * x - 0.875; }\n");
-    if (activationsSet.contains(ActivationFunctionType.slq)) {
+          "double uscls(double x) {  if (x > 4) return 1 + 0.25 * x;  if (x > -2) return 0.5 * x;  return 0.0625 * x - 0.875; }\n");
+    if (activationsSet.contains(ActivationFunctionType.uscsls)) {
       stringBuffer.write(
-          "double slq(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}\n");
-      stringBuffer.write('''Float32x4 slqX4(Float32x4 x) {
+          "double uscsls(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}\n");
+      stringBuffer.write('''Float32x4 uscslsX4(Float32x4 x) {
   x += Float32x4.splat(0.45353);
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Float32x4 x2 = x * x;
@@ -247,14 +248,22 @@ class TfannNetwork {
               Float32x4.splat(5 / 18)));
 }\n''');
     }
-    if (activationsSet.contains(ActivationFunctionType.lliq)) {
-      stringBuffer.write('''double lliq(double x) {
+    if (activationsSet.contains(ActivationFunctionType.uacsls)) {
+      stringBuffer.write('''double uacsls(double x) {
   var qx = x * 0.25;
   if (x >= 0) return qx;
   if (x > -1.5) return qx * qx + qx;
   return 0.0625 * x - 0.140625;
 }''');
     }
+    if (activationsSet.contains(ActivationFunctionType.fastBell)) {
+      stringBuffer.write('''double fastBell(double x) {
+  var x2 = x * x;
+  if (x2 <= 0.25) return 1 - 2 * x2;
+  return (1 - x2) / (8 * x2) + 1 / 8.0;
+}''');
+    }
+    
 
     layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
@@ -315,7 +324,8 @@ class TfannNetwork {
         '',
         '',
         '',
-        'slqX4',
+        'uscslsX4',
+        '',
         ''
       ][layer.activationFunc.type.index];
       var currentFunc = [
@@ -324,9 +334,10 @@ class TfannNetwork {
         'absSigmoid',
         'bell',
         'gelu',
-        'lelq',
-        'slq',
-        'lliq'
+        'uscls',
+        'uscsls',
+        'uacsls',
+        'fastBell'
       ][layer.activationFunc.type.index];
       if (currentX4Func.isNotEmpty) {
         var actFull4 = layer.bias.length ~/ 4;

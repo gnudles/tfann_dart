@@ -2,7 +2,25 @@ import 'dart:math' as math;
 
 import 'dart:typed_data';
 
-enum ActivationFunctionType { logistic, tanh, abs, bell, gelu, lelq, slq, lliq }
+enum ActivationFunctionType { 
+  /// the logistic sigmoid scaled to [-1,1] bounds
+  logistic,
+  /// tanh
+  tanh,
+  /// abs sigmoid defined as x/(1+abs(x))
+  abs,
+  /// bell curve defined as e^(-0.5*x*x). ([0,1] bounds)
+  bell,
+  /// that slow gelu function...
+  gelu,
+  /// unbounded S shaped curve made from three line segments
+  uscls,
+  /// unbounded S shaped curve made from two line segments connected by cubic curve
+  uscsls,
+  /// unbounded ascending curve made from two lines connected by quadric curve
+  uacsls,
+  /// fast bell shaped function
+  fastBell }
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -72,6 +90,20 @@ const ActivationFunction activationBell = ActivationFunction(
     ActivationFunctionType.bell, 0.0, 1.0,
     func: bellFunc, derivative: bellDeriv);
 
+double fastBellFunc(double x) {
+  var x2 = x * x;
+  if (x2 <= 0.25) return 1 - 2 * x2;
+  return (1 - x2) / (8 * x2) + 1 / 8.0;
+}
+double fastBellDeriv(double x) {
+  var x2 = x * x;
+  if (x2 <= 0.25) return -4*x;
+  return -1/(4*x2*x);
+}
+const ActivationFunction activationFastBell = ActivationFunction(
+    ActivationFunctionType.fastBell, 0.0, 1.0,
+    func: fastBellFunc, derivative: fastBellDeriv);
+
 //fast bell
 //0.4*(1-4*x*x)/(1+x*x)+0.6
 //or
@@ -119,31 +151,36 @@ const ActivationFunction activationLogisticSigmoid = ActivationFunction(
     ActivationFunctionType.logistic, -1.0, 1.0,
     func: logisticFunc, derivative: logisticDeriv);
 
-double lliqFunc(double x) {
+///UACSLS unbounded ascending curve smoothen line segments
+double uacslsFunc(double x) {
   var qx = x * 0.25;
   if (x >= 0) return qx;
-  if (x > -1.5) return qx*qx + qx;
+  if (x > -1.5) return qx * qx + qx;
   return 0.0625 * x - 0.140625;
 }
-double lliqDeriv(double x) {
-  
+
+double uacslsDeriv(double x) {
   if (x >= 0) return 0.25;
-  if (x > -1.5) return x*0.125 + 0.25;
+  if (x > -1.5) return x * 0.125 + 0.25;
   return 0.0625;
 }
-const ActivationFunction activationLLIQ = ActivationFunction(
-    ActivationFunctionType.lliq, double.negativeInfinity, double.infinity,
-    func: lliqFunc,
-    derivative: lliqDeriv,
+
+const ActivationFunction activationUACSLS = ActivationFunction(
+  ActivationFunctionType.uacsls,
+  double.negativeInfinity,
+  double.infinity,
+  func: uacslsFunc,
+  derivative: uacslsDeriv,
 );
 
-double lelqFunc(double x) {
+///USCLS unbounded S curve line segments
+double usclsFunc(double x) {
   if (x > 4) return 1 + 0.25 * x;
   if (x > -2) return 0.5 * x;
   return 0.0625 * x - 0.875;
 }
 
-Float32x4 lelqFuncSimd(Float32x4 x) {
+Float32x4 usclsFuncSimd(Float32x4 x) {
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Float32x4 branch1Result = x.scale(0.25) + Float32x4.splat(1);
   Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
@@ -153,13 +190,13 @@ Float32x4 lelqFuncSimd(Float32x4 x) {
       branch1Result, lessThanMinus2.select(branch3Result, x.scale(0.5)));
 }
 
-double lelqDeriv(double x) {
+double usclsDeriv(double x) {
   if (x > 4) return 0.25;
   if (x > -2) return 0.5;
   return 0.0625;
 }
 
-Float32x4 lelqDerivSimd(Float32x4 x) {
+Float32x4 usclsDerivSimd(Float32x4 x) {
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
 
   Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
@@ -168,14 +205,15 @@ Float32x4 lelqDerivSimd(Float32x4 x) {
       lessThanMinus2.select(Float32x4.splat(0.0625), Float32x4.splat(0.5)));
 }
 
-const ActivationFunction activationLELQ = ActivationFunction(
-    ActivationFunctionType.lelq, double.negativeInfinity, double.infinity,
-    func: lelqFunc,
-    derivative: lelqDeriv,
-    funcSIMD: lelqFuncSimd,
-    derivativeSIMD: lelqDerivSimd);
+const ActivationFunction activationUSCLS = ActivationFunction(
+    ActivationFunctionType.uscls, double.negativeInfinity, double.infinity,
+    func: usclsFunc,
+    derivative: usclsDeriv,
+    funcSIMD: usclsFuncSimd,
+    derivativeSIMD: usclsDerivSimd);
 
-double slqFunc(double x) {
+
+double uscslsFunc(double x) {
   x += 0.45353;
   if (x > 4) return 1 + 0.25 * x;
   if (x > -2) {
@@ -186,14 +224,14 @@ double slqFunc(double x) {
   return 0.0625 * x - 0.875;
 }
 
-double slqDeriv(double x) {
+double uscslsDeriv(double x) {
   x += 0.45353;
   if (x > 4) return 0.25;
   if (x > -2) return (-33 / 576) * x * x + (7 / 48) * x + (7 / 12);
   return 0.0625;
 }
 
-Float32x4 slqFuncSimd(Float32x4 x) {
+Float32x4 uscslsFuncSimd(Float32x4 x) {
   x += Float32x4.splat(0.45353);
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Float32x4 x2 = x * x;
@@ -214,7 +252,7 @@ Float32x4 slqFuncSimd(Float32x4 x) {
               Float32x4.splat(5 / 18)));
 }
 
-Float32x4 slqDerivSimd(Float32x4 x) {
+Float32x4 uscslsDerivSimd(Float32x4 x) {
   x += Float32x4.splat(0.45353);
   Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
   Int32x4 greater2 = x.greaterThan(Float32x4.splat(-2));
@@ -225,13 +263,13 @@ Float32x4 slqDerivSimd(Float32x4 x) {
           x2.scale(-33 / 576) + x.scale(7 / 48) + Float32x4.splat(7 / 12),
           Float32x4.splat(0.0625)));
 }
-
-const ActivationFunction activationSLQ = ActivationFunction(
-    ActivationFunctionType.slq, double.negativeInfinity, double.infinity,
-    func: slqFunc,
-    derivative: slqDeriv,
-    funcSIMD: slqFuncSimd,
-    derivativeSIMD: slqDerivSimd);
+///USCSLS unbounded S curve smoothen line segments
+const ActivationFunction activationUSCSLS = ActivationFunction(
+    ActivationFunctionType.uscsls, double.negativeInfinity, double.infinity,
+    func: uscslsFunc,
+    derivative: uscslsDeriv,
+    funcSIMD: uscslsFuncSimd,
+    derivativeSIMD: uscslsDerivSimd);
 
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.abs: activationAbsSigmoid,
@@ -239,9 +277,10 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.tanh: activationTanh,
   ActivationFunctionType.bell: activationBell,
   ActivationFunctionType.gelu: activationGELU,
-  ActivationFunctionType.lelq: activationLELQ,
-  ActivationFunctionType.slq: activationSLQ,
-  ActivationFunctionType.lliq: activationLLIQ,
+  ActivationFunctionType.uscls: activationUSCLS,
+  ActivationFunctionType.uscsls: activationUSCSLS,
+  ActivationFunctionType.uacsls: activationUACSLS,
+  ActivationFunctionType.fastBell: activationFastBell,
 };
 
 var activationTypeFromString = Map.fromEntries(
