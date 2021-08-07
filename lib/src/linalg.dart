@@ -4,16 +4,23 @@ import 'dart:math' as math;
 
 class FVector {
   final Float32x4List columnData;
+  late final Float32List listView;
   final int nRows;
   int get length => nRows;
-  FVector.zero(this.nRows) : columnData = Float32x4List((nRows + 3) ~/ 4);
+  FVector.zero(this.nRows) : columnData = Float32x4List((nRows + 3) ~/ 4) {
+    listView = columnData.buffer.asFloat32List();
+  }
   FVector.fromList(List<double> list)
       : nRows = list.length,
         columnData = Float32List.fromList(
                 list.followedBy([0, 0, 0]).toList(growable: false))
             .buffer
-            .asFloat32x4List();
-  FVector.fromBuffer(this.nRows, this.columnData);
+            .asFloat32x4List() {
+    listView = columnData.buffer.asFloat32List();
+  }
+  FVector.fromBuffer(this.nRows, this.columnData) {
+    listView = columnData.buffer.asFloat32List();
+  }
   FVector slice(int offset, int length) {
     FVector newVec = FVector.zero(length);
     assert(offset + length <= nRows && offset >= 0 && length > 0);
@@ -38,6 +45,7 @@ class FVector {
       newVec.columnData[i] = columnData[i] * other.columnData[i];
     return newVec;
   }
+
   /// Checks if two vectors are identical.
   bool equals(FVector other) {
     if (other.nRows != nRows) return false;
@@ -101,7 +109,12 @@ class FVector {
   }
 
   double largestElement() {
-    Float32x4 maxQuant = columnData.last.shuffle([Float32x4.xyzw,Float32x4.xxxx,Float32x4.xyyy,Float32x4.xyzz][nRows%4]);
+    Float32x4 maxQuant = columnData.last.shuffle([
+      Float32x4.xyzw,
+      Float32x4.xxxx,
+      Float32x4.xyyy,
+      Float32x4.xyzz
+    ][nRows % 4]);
     for (int i = 0; i < columnData.length - 1; ++i)
       maxQuant = maxQuant.max(columnData[i]);
     return math.max(
@@ -109,7 +122,12 @@ class FVector {
   }
 
   double smallestElement() {
-    Float32x4 minQuant = columnData.last.shuffle([Float32x4.xyzw,Float32x4.xxxx,Float32x4.xyyy,Float32x4.xyzz][nRows%4]);
+    Float32x4 minQuant = columnData.last.shuffle([
+      Float32x4.xyzw,
+      Float32x4.xxxx,
+      Float32x4.xyyy,
+      Float32x4.xyzz
+    ][nRows % 4]);
     for (int i = 0; i < columnData.length - 1; ++i)
       minQuant = minQuant.min(columnData[i]);
     return math.min(
@@ -119,7 +137,7 @@ class FVector {
   double sumElements() {
     Float32x4 sum = columnData[0];
     for (int i = 1; i < columnData.length; ++i) sum += columnData[i];
-    return  sum.x + sum.y + sum.z + sum.w;
+    return sum.x + sum.y + sum.z + sum.w;
   }
 
   FVector operator +(FVector other) {
@@ -136,6 +154,16 @@ class FVector {
     for (int i = 0; i < columnData.length; ++i)
       newVec.columnData[i] = columnData[i] - other.columnData[i];
     return newVec;
+  }
+
+  void operator []=(int index, double value) {
+    assert(index >= 0 && index < nRows);
+    listView[index] = value;
+  }
+
+  double operator [](int index) {
+    assert(index >= 0 && index < nRows);
+    return listView[index];
   }
 
   void apply(double Function(double) func,

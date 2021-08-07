@@ -30,7 +30,7 @@ List<TrainSetInputOutput> xor_data = [
     ];
 
 final xor_net =
-        TfannNetwork.full([3, 5, 4], activation: ActivationFunctionType.gelu);
+        TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscls, ActivationFunctionType.uscsls]);
 
 print("before training...");
 xor_data.forEach((data) => print(

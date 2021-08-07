@@ -11,7 +11,7 @@ void main() {
   group('TfannNetwork', () {
     final Random r = Random();
     final bitwiseNN =
-        TfannNetwork.full([3, 3, 4], activation: ActivationFunctionType.uscls);
+        TfannNetwork.full([3, 3, 4], [ActivationFunctionType.uscls,ActivationFunctionType.uscsls]);
     List<TrainSetInputOutput> bitwiseTrainSets = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
        column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
@@ -105,71 +105,5 @@ void main(_, SendPort port) {
     });
   });
 
-  return;
-  test('test xor', () async {
-    final xor_net =
-        TfannNetwork.full([3, 4, 4], activation: ActivationFunctionType.uscsls);
-
-    //xor_net.layers[0].activationFunc = activationBell;
-    List<TrainSetInputOutput> xor_data_m = [
-      /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
-       column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
-      */
-
-      TrainSetInputOutput.lists([1, 1, -1], [-1, -1, 1, 1]),
-      TrainSetInputOutput.lists([1, -1, -1], [1, -1, 1, -1]),
-      TrainSetInputOutput.lists([-1, 1, -1], [1, -1, 1, -1]),
-      TrainSetInputOutput.lists([-1, -1, -1], [-1, -1, -1, -1]),
-      TrainSetInputOutput.lists([-1, -1, 1], [1, -1, 1, -1]),
-      TrainSetInputOutput.lists([1, 1, 1], [1, 1, 1, -1]),
-      TrainSetInputOutput.lists([1, -1, 1], [-1, -1, 1, 1]),
-      TrainSetInputOutput.lists([-1, 1, 1], [-1, -1, 1, 1]),
-    ];
-    List<TrainSetInputOutput> xor_data0 = [
-      /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
-       column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
-      */
-
-      TrainSetInputOutput.lists([1, 1, -1], [0, 0, 1, 1]),
-      TrainSetInputOutput.lists([1, -1, -1], [1, 0, 1, 0]),
-      TrainSetInputOutput.lists([-1, 1, -1], [1, 0, 1, 0]),
-      TrainSetInputOutput.lists([-1, -1, -1], [0, 0, 0, 0]),
-      TrainSetInputOutput.lists([-1, -1, 1], [1, 0, 1, 0]),
-      TrainSetInputOutput.lists([1, 1, 1], [1, 1, 1, 0]),
-      TrainSetInputOutput.lists([1, -1, 1], [0, 0, 1, 1]),
-      TrainSetInputOutput.lists([-1, 1, 1], [0, 0, 1, 1]),
-    ];
-    List<TrainSetInputOutput> xor_data = xor_data_m;
-    xor_data.forEach((data) => print(
-        "in: ${data.input.toList()} out: ${xor_net.feedForward(data.input).toList()} expected: ${data.output.toList()}"));
-    print("training...");
-    for (int i = 0; i < 4000; ++i) {
-      xor_data.forEach((data) {
-        xor_net.train(data, learningRate: 0.03);
-      });
-    }
-    for (int i = 0; i < 1000; ++i) {
-      xor_data.forEach((data) {
-        xor_net.train(data, learningRate: 0.002);
-      });
-    }
-    for (int i = 0; i < 400; ++i) {
-      xor_data.forEach((data) {
-        xor_net.train(data, learningRate: 0.0002);
-      });
-    }
-
-    xor_data.forEach((data) => print(
-        "in: ${data.input.toList()} out: ${xor_net.feedForward(data.input).toList()} expected: ${data.output.toList()}"));
-    print("errors:");
-    print(xor_data.map((e) => xor_net.calculateMeanAbsoluteError(e)).toList());
-    await xor_net.save("binary.net");
-
-    var new_net = TfannNetwork.fromFile("binary.net")!;
-    print("after saving and loading:");
-    xor_data.forEach((data) => print(
-        "in: ${data.input.toList()} out: ${new_net.feedForward(data.input).toList()} expected: ${data.output.toList()}"));
-
-    print(new_net.compile());
-  });
+  
 }

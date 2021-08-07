@@ -76,14 +76,14 @@ class TfannLayer {
 class TfannNetwork {
   List<TfannLayer> layers = [];
   TfannNetwork(this.layers);
-  TfannNetwork.full(List<int> layersDefinition,
-      {ActivationFunctionType activation = ActivationFunctionType.uscsls}) {
-    int nextInputs = layersDefinition[0];
-
-    layersDefinition.skip(1).forEach((outputs) {
-      layers.add(TfannLayer(nextInputs, outputs, activation));
-      nextInputs = outputs;
-    });
+  TfannNetwork.full(
+      List<int> layersDefinition, List<ActivationFunctionType> activation) {
+    assert(layersDefinition.length == activation.length + 1);
+    
+    for (int i = 0; i < activation.length; ++i)
+    {
+        layers.add(TfannLayer(layersDefinition[i], layersDefinition[i+1], activation[i]));
+    }
   }
 
   /// Get the network's output vector from the input vector.
@@ -263,7 +263,6 @@ class TfannNetwork {
   return (1 - x2) / (8 * x2) + 1 / 8.0;
 }''');
     }
-    
 
     layers.asMap().forEach((i, layer) {
       int weightsWidth = layer.weights.nColumns;
