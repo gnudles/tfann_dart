@@ -4,14 +4,25 @@ import 'dart:math';
 
 import 'package:test/test.dart';
 import 'package:tfann/tfann.dart';
+import 'package:tfann/src/activation_function.dart';
 
 import 'dart:typed_data';
 
 void main() {
   group('TfannNetwork', () {
     final Random r = Random();
-    final bitwiseNN =
-        TfannNetwork.full([3, 3, 4], [ActivationFunctionType.uscls,ActivationFunctionType.uscsls]);
+    final bitwiseNN = TfannNetwork.full([
+      3,
+      3,
+      3,
+      3,
+      4
+    ], [
+      ActivationFunctionType.uscls,
+      ActivationFunctionType.fastBell,
+      ActivationFunctionType.tanh,
+      ActivationFunctionType.uscsls
+    ]);
     List<TrainSetInputOutput> bitwiseTrainSets = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
        column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
@@ -70,6 +81,37 @@ void main(_, SendPort port) {
       }
     });
 
+    test('derivatives & funcs', () {
+      var xs = List.generate(256, (i) => -10 + 20 * i / 256);
+      Float32x4 simdResult;
+      void compareSimdAndNonSimd(
+          Float32x4 Function(Float32x4) simd, double Function(double) nonSimd) {
+        for (int i = 0; i < 256; i += 4) {
+          simdResult = simd(Float32x4(xs[i], xs[i + 1], xs[i + 2], xs[i + 3]));
+          expect((nonSimd(xs[i]) - simdResult.x).abs() < 0.00001, isTrue);
+          expect((nonSimd(xs[i + 1]) - simdResult.y).abs() < 0.00001, isTrue);
+          expect((nonSimd(xs[i + 2]) - simdResult.z).abs() < 0.00001, isTrue);
+          expect((nonSimd(xs[i + 3]) - simdResult.w).abs() < 0.00001, isTrue);
+        }
+      }
+
+      mapActivationFunction.values.forEach((actFunc) {
+        if (actFunc.derivativeSIMD != null) {
+          compareSimdAndNonSimd(actFunc.derivativeSIMD!, actFunc.derivative);
+        }
+        if (actFunc.funcSIMD != null) {
+          compareSimdAndNonSimd(actFunc.funcSIMD!, actFunc.func);
+        }
+        for (int i = 0; i < 256; i++) {
+          var compDeriv =
+              (actFunc.func(xs[i] + 1 / 8192) - actFunc.func(xs[i])) * 8192;
+          expect(
+              (actFunc.derivative(xs[i] + 1 / 16384) - compDeriv).abs() < 0.0001,
+              isTrue);
+        }
+      });
+    });
+
     test('serialization', () async {
       var jsonString = jsonEncode(bitwiseNN.toJson());
       var loadedNN = TfannNetwork.fromJson(jsonDecode(jsonString));
@@ -101,9 +143,10 @@ void main(_, SendPort port) {
         [2, 3, 4]
       ]);
       final FVector vector = FVector.fromList([1, 2, 3]);
-      expect((leftMatrix.multiplyVector(vector)).equals(FVector.fromList([14,20])),isTrue);
+      expect(
+          (leftMatrix.multiplyVector(vector))
+              .equals(FVector.fromList([14, 20])),
+          isTrue);
     });
   });
-
-  
 }

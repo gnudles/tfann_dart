@@ -2,25 +2,34 @@ import 'dart:math' as math;
 
 import 'dart:typed_data';
 
-enum ActivationFunctionType { 
+enum ActivationFunctionType {
   /// the logistic sigmoid scaled to [-1,1] bounds
   logistic,
+
   /// tanh
   tanh,
+
   /// abs sigmoid defined as x/(1+abs(x))
   abs,
+
   /// bell curve defined as e^(-0.5*x*x). ([0,1] bounds)
   bell,
+
   /// that slow gelu function...
   gelu,
+
   /// unbounded S shaped curve made from three line segments
   uscls,
+
   /// unbounded S shaped curve made from two line segments connected by cubic curve
   uscsls,
+
   /// unbounded ascending curve made from two lines connected by quadric curve
   uacsls,
+
   /// fast bell shaped function
-  fastBell }
+  fastBell
+}
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -95,11 +104,13 @@ double fastBellFunc(double x) {
   if (x2 <= 0.25) return 1 - 2 * x2;
   return (1 - x2) / (8 * x2) + 1 / 8.0;
 }
+
 double fastBellDeriv(double x) {
   var x2 = x * x;
-  if (x2 <= 0.25) return -4*x;
-  return -1/(4*x2*x);
+  if (x2 <= 0.25) return -4 * x;
+  return -1 / (4 * x2 * x);
 }
+
 const ActivationFunction activationFastBell = ActivationFunction(
     ActivationFunctionType.fastBell, 0.0, 1.0,
     func: fastBellFunc, derivative: fastBellDeriv);
@@ -212,7 +223,6 @@ const ActivationFunction activationUSCLS = ActivationFunction(
     funcSIMD: usclsFuncSimd,
     derivativeSIMD: usclsDerivSimd);
 
-
 double uscslsFunc(double x) {
   x += 0.45353;
   if (x > 4) return 1 + 0.25 * x;
@@ -263,6 +273,7 @@ Float32x4 uscslsDerivSimd(Float32x4 x) {
           x2.scale(-33 / 576) + x.scale(7 / 48) + Float32x4.splat(7 / 12),
           Float32x4.splat(0.0625)));
 }
+
 ///USCSLS unbounded S curve smoothen line segments
 const ActivationFunction activationUSCSLS = ActivationFunction(
     ActivationFunctionType.uscsls, double.negativeInfinity, double.infinity,

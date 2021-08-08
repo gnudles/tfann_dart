@@ -79,10 +79,10 @@ class TfannNetwork {
   TfannNetwork.full(
       List<int> layersDefinition, List<ActivationFunctionType> activation) {
     assert(layersDefinition.length == activation.length + 1);
-    
-    for (int i = 0; i < activation.length; ++i)
-    {
-        layers.add(TfannLayer(layersDefinition[i], layersDefinition[i+1], activation[i]));
+
+    for (int i = 0; i < activation.length; ++i) {
+      layers.add(TfannLayer(
+          layersDefinition[i], layersDefinition[i + 1], activation[i]));
     }
   }
 
@@ -142,20 +142,21 @@ class TfannNetwork {
   }
 
   /// Given a single training pair, calculate the network's mean-square-error.
-  double calculateMeanSquareError(TrainSetInputOutput data) {
-    return (feedForward(data.input) - data.output).squared().sumElements() /
-        data.output.nRows;
+  FVector calculateMeanSquareError(List<TrainSetInputOutput> data) {
+    var sumVector = FVector.zero(layers.last.bias.length);
+    data.forEach((trainSet) {
+      sumVector += (feedForward(trainSet.input) - trainSet.output).squared();
+    });
+    return sumVector..scale(1.0 / data.length);
   }
 
-  /// Given a single training pair, calculate the network's root-mean-square-error.
-  double calculateRootMeanSquareError(TrainSetInputOutput data) {
-    return sqrt(calculateMeanSquareError(data));
-  }
-
-  /// Given a single training pair, calculate the network's mean-absolute-error.
-  double calculateMeanAbsoluteError(TrainSetInputOutput data) {
-    return (feedForward(data.input) - data.output).abs().sumElements() /
-        data.output.nRows;
+  /// Given a single training pair, calculate the network's mean-absolute-error per output node
+  FVector calculateMeanAbsoluteError(List<TrainSetInputOutput> data) {
+    var sumVector = FVector.zero(layers.last.bias.length);
+    data.forEach((trainSet) {
+      sumVector += (feedForward(trainSet.input) - trainSet.output).abs();
+    });
+    return sumVector..scale(1.0 / data.length);
   }
 
   /// Returns Json object.

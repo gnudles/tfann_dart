@@ -7,6 +7,7 @@ class FVector {
   late final Float32List listView;
   final int nRows;
   int get length => nRows;
+  double get single => listView[0];
   FVector.zero(this.nRows) : columnData = Float32x4List((nRows + 3) ~/ 4) {
     listView = columnData.buffer.asFloat32List();
   }
@@ -98,6 +99,13 @@ class FVector {
     FVector newVec = FVector.zero(nRows);
     for (int i = 0; i < columnData.length; ++i)
       newVec.columnData[i] = columnData[i] * columnData[i];
+    return newVec;
+  }
+
+  FVector sqrt() {
+    FVector newVec = FVector.zero(nRows);
+    for (int i = 0; i < columnData.length; ++i)
+      newVec.columnData[i] = columnData[i].sqrt();
     return newVec;
   }
 

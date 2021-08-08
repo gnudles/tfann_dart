@@ -68,6 +68,8 @@ To load the network:
 var xor_net = TfannNetwork.fromFile("binary.net")!;
 ```
 
+While developing, use the  --enable-asserts flag, in order to catch bugs.
+
 You may also compile the network into pure dart code. It is very good for production stage.
 
 The produced code have no dependencies at all, even not this package.
@@ -137,3 +139,4 @@ In these case, you would need to train the network with set of Input and Error. 
 You can also use the back-propagated error to create what's called "deep fake" or "deep dream".
 
 If you get NaN in your weights, then you got the infamous exploding gradient problem. Try again and set propErrorLimit (one of train arguments) to a small value (1/number_of_layers might be a good value).
+Also, if you are using unbounded activation functions, try to set few of the layers to bell shaped activation function. The bell functions helps to stabilize the network.

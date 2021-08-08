@@ -19,7 +19,7 @@ void main() {
       x += 6.29 / 1000;
       print(
           "x= $x : error= ${sine_net.calculateMeanAbsoluteError(
-            TrainSetInputOutput.lists([x], [sin(x)]))}");
+            [TrainSetInputOutput.lists([x], [sin(x)])]).single}");
     }
   }
 }
