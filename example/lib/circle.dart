@@ -13,13 +13,13 @@ void main() {
       16,
       1
     ], [
+      ActivationFunctionType.uscls,
       ActivationFunctionType.fastBell,
       ActivationFunctionType.uscls,
-      ActivationFunctionType.uscls,
-      ActivationFunctionType.uscsls
+      ActivationFunctionType.fastBell
     ]);
     var criteria = (sr) => (sr < 1 && sr > 0.25) ? 1.0 : 0.0;
-    for (int i = 0; i < 1000000; ++i) {
+    for (int i = 0; i < 2000000; ++i) {
       var x = r.nextDouble() * 3 - 1.5;
       var y = r.nextDouble() * 3 - 1.5;
       var sr = x * x + y * y;

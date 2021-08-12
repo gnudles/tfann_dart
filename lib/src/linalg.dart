@@ -2,14 +2,21 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math' as math;
 
+/// Simd based column vector type.
 class FVector {
   final Float32x4List columnData;
   late final Float32List listView;
   final int nRows;
+
+  /// number of items
   int get length => nRows;
-  double get single => listView[0];
+
+  /// Checks that this vector has only one element, and returns that element.
+  ///
+  /// Throws a [StateError] if this is empty or has more than one element.
+  double get single => listView.single;
   FVector.zero(this.nRows) : columnData = Float32x4List((nRows + 3) ~/ 4) {
-    listView = columnData.buffer.asFloat32List();
+    listView = columnData.buffer.asFloat32List(0, nRows);
   }
   FVector.fromList(List<double> list)
       : nRows = list.length,
@@ -17,10 +24,10 @@ class FVector {
                 list.followedBy([0, 0, 0]).toList(growable: false))
             .buffer
             .asFloat32x4List() {
-    listView = columnData.buffer.asFloat32List();
+    listView = columnData.buffer.asFloat32List(0, nRows);
   }
   FVector.fromBuffer(this.nRows, this.columnData) {
-    listView = columnData.buffer.asFloat32List();
+    listView = columnData.buffer.asFloat32List(0, nRows);
   }
   FVector slice(int offset, int length) {
     FVector newVec = FVector.zero(length);
@@ -60,6 +67,7 @@ class FVector {
     return ((result.x | result.y | result.z | result.w) == 0);
   }
 
+  /// Multiplies the vector by scalar (immutable)
   FVector scaled(double factor) {
     FVector newVec = FVector.zero(nRows);
     for (int i = 0; i < columnData.length; ++i)
@@ -67,6 +75,13 @@ class FVector {
     return newVec;
   }
 
+  /// Multiplies the vector by scalar (mutable)
+  void scale(double factor) {
+    for (int i = 0; i < columnData.length; ++i)
+      columnData[i] = columnData[i].scale(factor);
+  }
+
+  /// concatenate two vectors (immutable)
   FVector concat(FVector other) {
     Float32x4List newColumnData = Float32x4List((nRows + other.nRows + 3) ~/ 4);
     int i;
@@ -90,11 +105,7 @@ class FVector {
     return FVector.fromBuffer(nRows + other.nRows, newColumnData);
   }
 
-  void scale(double factor) {
-    for (int i = 0; i < columnData.length; ++i)
-      columnData[i] = columnData[i].scale(factor);
-  }
-
+  /// Multiplies each element by itself (immutable)
   FVector squared() {
     FVector newVec = FVector.zero(nRows);
     for (int i = 0; i < columnData.length; ++i)
@@ -102,6 +113,7 @@ class FVector {
     return newVec;
   }
 
+  /// Calculates the square-root of each element (immutable)
   FVector sqrt() {
     FVector newVec = FVector.zero(nRows);
     for (int i = 0; i < columnData.length; ++i)
@@ -109,6 +121,7 @@ class FVector {
     return newVec;
   }
 
+  /// Calculates the absolute value of each element (immutable)
   FVector abs() {
     FVector newVec = FVector.zero(nRows);
     for (int i = 0; i < columnData.length; ++i)
@@ -142,6 +155,7 @@ class FVector {
         math.min(minQuant.x, minQuant.y), math.min(minQuant.z, minQuant.w));
   }
 
+  /// Calculates the sum of all elements.
   double sumElements() {
     Float32x4 sum = columnData[0];
     for (int i = 1; i < columnData.length; ++i) sum += columnData[i];
@@ -174,6 +188,7 @@ class FVector {
     return listView[index];
   }
 
+  /// Applies function `func` to each element (mutable)
   void apply(double Function(double) func,
       [Float32x4 Function(Float32x4)? funcSIMD]) {
     int start = 0;
@@ -192,6 +207,7 @@ class FVector {
     }
   }
 
+  /// Applies function `func` to each element (immutable)
   FVector applied(double Function(double) func,
       [Float32x4 Function(Float32x4)? funcSIMD]) {
     int start = 0;
@@ -213,6 +229,9 @@ class FVector {
     return newVec;
   }
 
+  /// Multiplies this vector by the transposed `other` vector.
+  /// 
+  /// Multiplying column vector by row vector creates a matrix.
   FLeftMatrix multiplyTransposed(FVector other) {
     FLeftMatrix result = FLeftMatrix.zero(other.nRows, this.nRows);
     Float32List columnVec = this.columnData.buffer.asFloat32List();
@@ -226,6 +245,7 @@ class FVector {
     return result;
   }
 
+  /// stores this vector in json format
   Map<String, dynamic> toJson() {
     Map<String, dynamic> json = {};
     json["rows"] = nRows;
@@ -251,6 +271,9 @@ int roundUp4(int v) {
   return (v + 3) & 0xfffffffffc;
 }
 
+/// Simd based arbitrary size matrix
+/// 
+/// A matrix which is optimized to be the left operand of matrix multiplication.
 class FLeftMatrix {
   List<Float32x4List> rowsData;
   int nColumns, nRows;
@@ -267,6 +290,7 @@ class FLeftMatrix {
                 .asFloat32x4List(0, (list.length + 3) ~/ 4))
             .toList(growable: false);
 
+  /// multiplies this matrix by a vector, resulting with new vector.
   FVector multiplyVector(FVector vec) {
     assert(vec.nRows == this.nColumns);
     Float32List float32list = Float32List(roundUp4(this.nRows));

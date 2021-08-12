@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:tfann/tfann.dart';
-import 'package:tfann/src/train_data.dart';
+import 'package:tfann/src/train_set.dart';
 
 import 'activation_function.dart';
 import 'dart:math';

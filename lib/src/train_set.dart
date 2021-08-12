@@ -12,12 +12,14 @@ class TrainSetInputError extends TrainSet {
   TrainSetInputError(FVector input, this.error) : super(input);
 
   TrainSetInputError.lists(List<double> inputList, List<double> errorList)
-      : error = FVector.fromList(errorList), super(FVector.fromList(inputList));
+      : error = FVector.fromList(errorList),
+        super(FVector.fromList(inputList));
 }
 
-class TrainSetInputOutput extends TrainSet{
+class TrainSetInputOutput extends TrainSet {
   FVector output;
   TrainSetInputOutput(FVector input, this.output) : super(input);
   TrainSetInputOutput.lists(List<double> inputList, List<double> outputList)
-      : output = FVector.fromList(outputList), super(FVector.fromList(inputList));
+      : output = FVector.fromList(outputList),
+        super(FVector.fromList(inputList));
 }

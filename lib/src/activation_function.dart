@@ -3,13 +3,13 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 enum ActivationFunctionType {
-  /// the logistic sigmoid scaled to [-1,1] bounds
+  /// the logistic sigmoid. ([0,1] bounds)
   logistic,
 
-  /// tanh
+  /// tanh. ([-1,1] bounds)
   tanh,
 
-  /// abs sigmoid defined as x/(1+abs(x))
+  /// abs sigmoid defined as x/(1+abs(x)). ([-1,1] bounds)
   abs,
 
   /// bell curve defined as e^(-0.5*x*x). ([0,1] bounds)
@@ -18,16 +18,16 @@ enum ActivationFunctionType {
   /// that slow gelu function...
   gelu,
 
-  /// unbounded S shaped curve made from three line segments
+  /// unbounded S shaped curve made from three line segments.
   uscls,
 
-  /// unbounded S shaped curve made from two line segments connected by cubic curve
+  /// unbounded S shaped curve made from two line segments connected by cubic curve.
   uscsls,
 
-  /// unbounded ascending curve made from two lines connected by quadric curve
+  /// unbounded ascending curve made from two lines connected by quadric curve.
   uacsls,
 
-  /// fast bell shaped function
+  /// fast bell shaped function.
   fastBell
 }
 
@@ -150,16 +150,16 @@ const ActivationFunction activationTanh = ActivationFunction(
     func: tanh, derivative: tanhDeriv);
 
 double logisticFunc(double x) {
-  return 2 / (1 + math.exp(-x)) - 1;
+  return 1 / (1 + math.exp(-x)) ;
 }
 
 double logisticDeriv(double x) {
   var emx = math.exp(-x);
-  return 2 * emx / ((1 + emx) * (1 + emx));
+  return  emx / ((1 + emx) * (1 + emx));
 }
 
 const ActivationFunction activationLogisticSigmoid = ActivationFunction(
-    ActivationFunctionType.logistic, -1.0, 1.0,
+    ActivationFunctionType.logistic, 0.0, 1.0,
     func: logisticFunc, derivative: logisticDeriv);
 
 ///UACSLS unbounded ascending curve smoothen line segments

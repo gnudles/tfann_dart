@@ -6,10 +6,7 @@
 /// ```
 library tfann;
 
-
 export 'src/network.dart';
-export 'src/train_data.dart';
+export 'src/train_set.dart';
 export 'src/activation_function.dart';
-export 'src/linalg.dart';
-
-
+export 'src/linalg.dart' hide roundUp4, FRightMatrix;
