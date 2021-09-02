@@ -30,7 +30,7 @@ List<TrainSetInputOutput> xor_data = [
     ];
 
 final xor_net =
-        TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscls, ActivationFunctionType.uscsls]);
+        TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
 
 print("before training...");
 xor_data.forEach((data) => print(
@@ -77,22 +77,42 @@ The produced code have no dependencies at all, even not this package.
 Usage:
 
 ```dart
-print(xor_net.compile());
+
+print(compileNetwork(xor_net));
+
 ```
 
 Output:
 
 ```dart
+
 import 'dart:typed_data';
 import 'dart:math';
 
-double gelu(double x) {      return 0.5*x*(1+tanh(0.7978845608028653558798921198687*(x+0.044715*x*x*x)));}
+double uscsls(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}
+Float32x4 uscslsX4(Float32x4 x) {
+  x += Float32x4.splat(0.45353);
+  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
+  Float32x4 x2 = x * x;
+  Float32x4 branch1Result = x.scale(0.25) + Float32x4.splat(1);
+  Float32x4 x3 = x2 * x;
 
-
-final List<Float32x4List> Lweight_tfann_evaluate_0 = [Int64List.fromList([-4684549482552772993, 3205952384]).buffer.asFloat32x4List(), Int64List.fromList([-4658463640062052053, 1067246068]).buffer.asFloat32x4List(), Int64List.fromList([4559296036336047244, 1060296640]).buffer.asFloat32x4List(), Int64List.fromList([4559652263048579599, 3214348148]).buffer.asFloat32x4List(), Int64List.fromList([4584575986206599728, 1068362496]).buffer.asFloat32x4List()];
-final Float32x4List Lbias_tfann_evaluate_0 = Int64List.fromList([4528448722206921976, -4714918008769206507, 3215666407, 0]).buffer.asFloat32x4List();
-final List<Float32x4List> Lweight_tfann_evaluate_1 = [Int64List.fromList([-4691824521505253971, -4665807858037931927, 3218341393, 0]).buffer.asFloat32x4List(), Int64List.fromList([-4629209937054397183, -4682969759229455083, 3189351279, 0]).buffer.asFloat32x4List(), Int64List.fromList([4406611430715703517, 4434756430857720869, 3199162943, 0]).buffer.asFloat32x4List(), Int64List.fromList([4546870734602276260, 4576005591552021506, 1051710346, 0]).buffer.asFloat32x4List()];
-final Float32x4List Lbias_tfann_evaluate_1 = Int64List.fromList([-4605361703785376108, -4673147291425281497]).buffer.asFloat32x4List();
+  Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
+  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);  
+  
+  return greater4.select(
+      branch1Result,
+      lessThanMinus2.select(
+          branch3Result,
+          x3.scale(-11 / 576) +
+              x2.scale(7 / 96) +
+              x.scale(7 / 12) -
+              Float32x4.splat(5 / 18)));
+}
+final List<Float32x4List> Lweight_tfann_evaluate_0 = [Uint32List.fromList([3209962030, 3216137746, 3210639258, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3214929675, 3215502053, 1067274155, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1065607033, 3209239346, 1067661884, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3216963690, 1062113278, 1067189068, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3217148364, 3217230598, 3217250982, 0]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_0 = Uint32List.fromList([1068705506, 1067842099, 1055350071, 1052725129, 3202069356, 0, 0, 0]).buffer.asFloat32x4List();
+final List<Float32x4List> Lweight_tfann_evaluate_1 = [Uint32List.fromList([1059405630, 3216279887, 1067104365, 1066584353, 1058614923, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3213682520, 3189869051, 1056767980, 1033034986, 1064559518, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1065551239, 3207167254, 1051821556, 1058158382, 3208697560, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1052874554, 1061131736, 3210522161, 3205716665, 3215786676, 0, 0, 0]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_1 = Uint32List.fromList([1055442582, 1065071056, 1060193668, 1047759191]).buffer.asFloat32x4List();
 
 
 List<double> tfann_evaluate(List<double> inData) 
@@ -112,8 +132,8 @@ List<double> tfann_evaluate(List<double> inData)
   currentTensor = outputTensor.buffer.asFloat32x4List();
   for (int i = 0; i < 2; ++i)
     currentTensor[i]+=Lbias_tfann_evaluate_0[i];
-  for (int i = 0; i < 5; ++i)
-    outputTensor[i]=gelu(outputTensor[i]);
+  currentTensor[0]=uscslsX4(currentTensor[0]);
+  outputTensor[4]=uscsls(outputTensor[4]);
   outputTensor = Float32List(4);
   for (int r = 0; r < 4; ++r)
   {
@@ -125,10 +145,10 @@ List<double> tfann_evaluate(List<double> inData)
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
     currentTensor[0]+=Lbias_tfann_evaluate_1[0];
-  for (int i = 0; i < 4; ++i)
-    outputTensor[i]=gelu(outputTensor[i]);
+  currentTensor[0]=uscslsX4(currentTensor[0]);
   return currentTensor.buffer.asFloat32List(0,4).toList();
 }
+
 ```
 
 ## Tips

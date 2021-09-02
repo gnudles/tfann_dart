@@ -50,13 +50,13 @@ void main() {
       16,
       1
     ], [
+      ActivationFunctionType.uscls,
       ActivationFunctionType.fastBell,
       ActivationFunctionType.uscls,
-      ActivationFunctionType.uscls,
-      ActivationFunctionType.uscsls
+      ActivationFunctionType.fastBell
     ]);
     var criteria = (sr) => (sr < 1 && sr > 0.25) ? 1.0 : 0.0;
-    for (int i = 0; i < 1000000; ++i) {
+    for (int i = 0; i < 2000000; ++i) {
       var x = r.nextDouble() * 3 - 1.5;
       var y = r.nextDouble() * 3 - 1.5;
       var sr = x * x + y * y;
@@ -81,6 +81,54 @@ void main() {
     print(
         "False Positive: ${false_positive * 100 / testLength}%   False Negative: ${false_negative * 100 / testLength}%");
   }
+}
+
+```
+
+## bitwise.dart
+
+```dart
+
+import 'dart:convert';
+import 'dart:math';
+
+import 'package:tfann/tfann.dart';
+
+void main() {
+
+
+  List<TrainSetInputOutput> bw_data = [
+    /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
+      column  3 - OR of 3 bits, column  4 - if exactly two bits ON,
+    */
+    TrainSetInputOutput.lists([-1, -1, -1], [0, 0, 0, 0]),
+    TrainSetInputOutput.lists([1, 1, -1], [0, 0, 1, 1]),
+    TrainSetInputOutput.lists([1, -1, -1], [1, 0, 1, 0]),
+    TrainSetInputOutput.lists([-1, 1, -1], [1, 0, 1, 0]),
+    TrainSetInputOutput.lists([-1, -1, 1], [1, 0, 1, 0]),
+    TrainSetInputOutput.lists([1, 1, 1], [1, 1, 1, 0]),
+    TrainSetInputOutput.lists([1, -1, 1], [0, 0, 1, 1]),
+    TrainSetInputOutput.lists([-1, 1, 1], [0, 0, 1, 1]),
+  ];
+
+  final bwise_net =
+      TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
+  // train network
+  for (int i = 0; i < 7000; ++i) {
+    bw_data.forEach((data) {
+      bwise_net.train(data, learningRate: 0.06);
+    });
+  }
+
+  print("after training...");
+
+    
+  bw_data.forEach((data) => print(
+    "in: ${data.input.toList()} out: ${bwise_net.feedForward(data.input).toList()} expected: ${data.output.toList()}"));
+
+  print("generated code:");
+  print(compileNetwork(bwise_net));
+
 }
 
 ```

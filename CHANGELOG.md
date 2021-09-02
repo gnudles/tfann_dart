@@ -1,3 +1,9 @@
+## 0.5.2
+
+* "logistic sigmoid" is back to normal, without scaling.
+* "compileNetwork" function added instead of TfannNetwork.compile
+* New methods in FVector (including array access operator).
+* other minor things...
 ## 0.5.1
 
 * added examples

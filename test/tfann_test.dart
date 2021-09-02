@@ -16,9 +16,11 @@ void main() {
       3,
       3,
       3,
+      3,
       4
     ], [
       ActivationFunctionType.uscls,
+      ActivationFunctionType.uacsls,
       ActivationFunctionType.fastBell,
       ActivationFunctionType.tanh,
       ActivationFunctionType.uscsls
@@ -45,7 +47,7 @@ void main() {
     setUp(() {});
 
     test('code generation', () async {
-      var sourceCode = bitwiseNN.compile(functionName: 'bitwiseEval');
+      var sourceCode = compileNetwork(bitwiseNN,functionName: 'bitwiseEval');
       final uri = Uri.dataFromString(
         '''
 import "dart:isolate";
