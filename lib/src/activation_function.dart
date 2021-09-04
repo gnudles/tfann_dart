@@ -53,6 +53,7 @@ double sinh(double x) {
 const SQRT_TWO_DIV_PI = 0.7978845608028653558798921198687;
 final Float32x4 _SIMD0_5 = Float32x4.splat(0.5);
 final Float32x4 _SIMD0_25 = Float32x4.splat(0.25);
+final Float32x4 _SIMD0_125 = Float32x4.splat(0.125);
 final Float32x4 _SIMD0_0625 = Float32x4.splat(0.0625);
 final Float32x4 _SIMDm1_5 = Float32x4.splat(-1.5);
 final Float32x4 _SIMD0_140625 = Float32x4.splat(0.140625);
@@ -120,9 +121,26 @@ double fastBellDeriv(double x) {
   return -1 / (4 * x2 * x);
 }
 
+Float32x4 fastBellFuncX4(Float32x4 x) {
+  var x2 = x * x;
+  return x2
+      .greaterThan(_SIMD0_25)
+      .select((_SIMD1 - x2) / (x2.scale(8)) + _SIMD0_125, _SIMD1 - x2.scale(2));
+}
+
+Float32x4 fastBellDerivX4(Float32x4 x) {
+  var x2 = x * x;
+  var xm4 = x.scale(-4);
+  return x2
+      .greaterThan(_SIMD0_25)
+      .select((x2 * xm4).reciprocal(), xm4);
+}
+
 const ActivationFunction activationFastBell = ActivationFunction(
     ActivationFunctionType.fastBell, 0.0, 1.0,
-    func: fastBellFunc, derivative: fastBellDeriv);
+    func: fastBellFunc, derivative: fastBellDeriv,
+    funcSIMD: fastBellFuncX4,
+    derivativeSIMD: fastBellDerivX4);
 
 //fast bell
 //0.4*(1-4*x*x)/(1+x*x)+0.6
@@ -137,13 +155,12 @@ double absSigmoidDeriv(double x) {
   return 1 / (abs_plus_one * abs_plus_one);
 }
 
-final Float32x4 ones = Float32x4.splat(1);
 Float32x4 absSigmoidFuncX4(Float32x4 x) {
-  return x / (ones + x.abs());
+  return x / (_SIMD1 + x.abs());
 }
 
 Float32x4 absSigmoidDerivX4(Float32x4 x) {
-  Float32x4 abs_plus_one = (ones + x.abs());
+  Float32x4 abs_plus_one = (_SIMD1 + x.abs());
   return (abs_plus_one * abs_plus_one).reciprocal();
 }
 
@@ -179,16 +196,12 @@ double uacslsFunc(double x) {
   return 0.0625 * x - 0.140625;
 }
 
-
-
 Float32x4 uacslsFuncSimd(Float32x4 x) {
   Float32x4 qx = x.scale(0.25);
   Int32x4 greaterZero = x.greaterThanOrEqual(Float32x4.zero());
   Int32x4 greaterM3div2 = x.greaterThan(_SIMDm1_5);
   return greaterZero.select(
-      qx,
-      greaterM3div2.select(
-          qx * qx + qx, x.scale(0.0625) - _SIMD0_140625));
+      qx, greaterM3div2.select(qx * qx + qx, x.scale(0.0625) - _SIMD0_140625));
 }
 
 double uacslsDeriv(double x) {
@@ -201,20 +214,15 @@ Float32x4 uacslsDerivSimd(Float32x4 x) {
   Int32x4 greaterZero = x.greaterThanOrEqual(Float32x4.zero());
   Int32x4 greaterM3div2 = x.greaterThan(_SIMDm1_5);
   return greaterZero.select(
-      _SIMD0_25,
-      greaterM3div2.select(
-          x.scale(0.125) + _SIMD0_25, _SIMD0_0625));
+      _SIMD0_25, greaterM3div2.select(x.scale(0.125) + _SIMD0_25, _SIMD0_0625));
 }
 
 const ActivationFunction activationUACSLS = ActivationFunction(
-  ActivationFunctionType.uacsls,
-  double.negativeInfinity,
-  double.infinity,
-  func: uacslsFunc,
-  derivative: uacslsDeriv,
-  funcSIMD: uacslsFuncSimd,
-  derivativeSIMD: uacslsDerivSimd
-);
+    ActivationFunctionType.uacsls, double.negativeInfinity, double.infinity,
+    func: uacslsFunc,
+    derivative: uacslsDeriv,
+    funcSIMD: uacslsFuncSimd,
+    derivativeSIMD: uacslsDerivSimd);
 
 ///USCLS unbounded S curve line segments
 double usclsFunc(double x) {
@@ -244,8 +252,8 @@ Float32x4 usclsDerivSimd(Float32x4 x) {
 
   Int32x4 lessThanMinus2 = x.lessThanOrEqual(_SIMDm2);
 
-  return greater4.select(_SIMD0_25,
-      lessThanMinus2.select(_SIMD0_0625, _SIMD0_5));
+  return greater4.select(
+      _SIMD0_25, lessThanMinus2.select(_SIMD0_0625, _SIMD0_5));
 }
 
 const ActivationFunction activationUSCLS = ActivationFunction(

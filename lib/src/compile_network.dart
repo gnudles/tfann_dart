@@ -13,6 +13,7 @@ String compileNetwork(TfannNetwork network,
   stringBuffer.write("import 'dart:math';\n\n");
   stringBuffer.write('''final Float32x4 _SIMD0_5 = Float32x4.splat(0.5);
 final Float32x4 _SIMD0_25 = Float32x4.splat(0.25);
+final Float32x4 _SIMD0_125 = Float32x4.splat(0.125);
 final Float32x4 _SIMD0_0625 = Float32x4.splat(0.0625);
 final Float32x4 _SIMDm1_5 = Float32x4.splat(-1.5);
 final Float32x4 _SIMD0_140625 = Float32x4.splat(0.140625);
@@ -94,6 +95,14 @@ final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);\n\n''');
   if (x2 <= 0.25) return 1 - 2 * x2;
   return (1 - x2) / (8 * x2) + 1 / 8.0;
 }\n''');
+    stringBuffer.write('''
+Float32x4 fastBellX4(Float32x4 x) {
+  var x2 = x * x;
+  return x2
+      .greaterThan(_SIMD0_25)
+      .select((_SIMD1 - x2) / (x2.scale(8)) + _SIMD0_125, _SIMD1 - x2.scale(2));
+}
+\n''');
   }
 
   network.layers.asMap().forEach((i, layer) {
@@ -157,7 +166,7 @@ final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);\n\n''');
       'usclsX4',
       'uscslsX4',
       'uacslsX4',
-      ''
+      'fastBellX4'
     ][layer.activationFunc.type.index];
     var currentFunc = [
       'logisticSigmoid',
