@@ -17,11 +17,17 @@ void main() {
       3,
       3,
       3,
+      3,
+      3,
+      3,
       4
     ], [
       ActivationFunctionType.uscls,
       ActivationFunctionType.uacsls,
       ActivationFunctionType.fastBell,
+      ActivationFunctionType.fastSigmoid,
+      ActivationFunctionType.abs,
+      ActivationFunctionType.bell,
       ActivationFunctionType.tanh,
       ActivationFunctionType.uscsls
     ]);
@@ -47,7 +53,7 @@ void main() {
     setUp(() {});
 
     test('code generation', () async {
-      var sourceCode = compileNetwork(bitwiseNN,functionName: 'bitwiseEval');
+      var sourceCode = compileNetwork(bitwiseNN, functionName: 'bitwiseEval');
       final uri = Uri.dataFromString(
         '''
 import "dart:isolate";
@@ -107,9 +113,9 @@ void main(_, SendPort port) {
         for (int i = 0; i < 256; i++) {
           var compDeriv =
               (actFunc.func(xs[i] + 1 / 8192) - actFunc.func(xs[i])) * 8192;
-          expect(
-              (actFunc.derivative(xs[i] + 1 / 16384) - compDeriv).abs() < 0.0001,
-              isTrue);
+          var actualDeriv = actFunc.derivative(xs[i] + 1 / 16384);
+          expect((actualDeriv - compDeriv).abs() < 0.0001, isTrue,
+              reason: '${actFunc.type.toString()}: at ${xs[i]}: computed: $compDeriv, expected: $actualDeriv');
         }
       });
     });

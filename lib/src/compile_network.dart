@@ -11,7 +11,8 @@ String compileNetwork(TfannNetwork network,
 
   stringBuffer.write("import 'dart:typed_data';\n");
   stringBuffer.write("import 'dart:math';\n\n");
-  stringBuffer.write('''final Float32x4 _SIMD0_5 = Float32x4.splat(0.5);
+  stringBuffer.write('''final Float32x4 _SIMD0_75 = Float32x4.splat(0.75);
+final Float32x4 _SIMD0_5 = Float32x4.splat(0.5);
 final Float32x4 _SIMD0_25 = Float32x4.splat(0.25);
 final Float32x4 _SIMD0_125 = Float32x4.splat(0.125);
 final Float32x4 _SIMD0_0625 = Float32x4.splat(0.0625);
@@ -19,8 +20,16 @@ final Float32x4 _SIMDm1_5 = Float32x4.splat(-1.5);
 final Float32x4 _SIMD0_140625 = Float32x4.splat(0.140625);
 final Float32x4 _SIMD1 = Float32x4.splat(1);
 final Float32x4 _SIMD4 = Float32x4.splat(4);
+final Float32x4 _SIMD8 = Float32x4.splat(8);
 final Float32x4 _SIMDm2 = Float32x4.splat(-2);
-final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);\n\n''');
+final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);
+final Float32x4List _SimdSignMaskVector = Float32x4List.fromList(List.generate(
+    16,
+    (index) => Float32x4(
+        (index & 1) != 0 ? -1.0 : 1.0,
+        (index & 2) != 0 ? -1.0 : 1.0,
+        (index & 4) != 0 ? -1.0 : 1.0,
+        (index & 8) != 0 ? -1.0 : 1.0)));\n\n''');
   if (activationsSet.contains(ActivationFunctionType.logistic))
     stringBuffer.write(
         "double logisticSigmoid(double x) { return 2 / (1 + exp(-x)) - 1;}\n");
@@ -104,6 +113,26 @@ Float32x4 fastBellX4(Float32x4 x) {
 }
 \n''');
   }
+  if (activationsSet.contains(ActivationFunctionType.fastSigmoid)) {
+    stringBuffer.write('''double fastSigmoid(double x)
+{
+  var absX = x.abs();
+  if(absX<=0.75)
+  {
+    return x;
+  }
+  var ftxmo=absX*4-1;
+  return x.sign *(1-1/(ftxmo*ftxmo));
+}\n''');
+stringBuffer.write('''Float32x4 fastSigmoidX4(Float32x4 x) {
+  var absX = x.abs();
+  var ftxmo = absX.scale(4) - _SIMD1;
+  return absX
+      .greaterThan(_SIMD0_75)
+      .select(_SimdSignMaskVector[x.signMask] * (_SIMD1-(ftxmo*ftxmo).reciprocal()), x);
+}\n''');
+
+  }
 
   network.layers.asMap().forEach((i, layer) {
     int weightsWidth = layer.weights.nColumns;
@@ -166,7 +195,8 @@ Float32x4 fastBellX4(Float32x4 x) {
       'usclsX4',
       'uscslsX4',
       'uacslsX4',
-      'fastBellX4'
+      'fastBellX4',
+      'fastSigmoidX4'
     ][layer.activationFunc.type.index];
     var currentFunc = [
       'logisticSigmoid',
@@ -177,7 +207,8 @@ Float32x4 fastBellX4(Float32x4 x) {
       'uscls',
       'uscsls',
       'uacsls',
-      'fastBell'
+      'fastBell',
+      'fastSigmoid'
     ][layer.activationFunc.type.index];
     if (currentX4Func.isNotEmpty) {
       var actFull4 = layer.bias.length ~/ 4;

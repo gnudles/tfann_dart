@@ -7,6 +7,8 @@ enum ActivationFunctionType {
   logistic,
 
   /// tanh. ([-1,1] bounds)
+  ///
+  /// It is sort of scaled version of the logistic sigmoid
   tanh,
 
   /// abs sigmoid defined as x/(1+abs(x)). ([-1,1] bounds)
@@ -28,7 +30,10 @@ enum ActivationFunctionType {
   uacsls,
 
   /// fast bell shaped function.
-  fastBell
+  fastBell,
+
+  /// fast sigmoid ([-1,1] bounds)
+  fastSigmoid,
 }
 
 double tanh(double x) {
@@ -51,6 +56,7 @@ double sinh(double x) {
 }
 
 const SQRT_TWO_DIV_PI = 0.7978845608028653558798921198687;
+final Float32x4 _SIMD0_75 = Float32x4.splat(0.75);
 final Float32x4 _SIMD0_5 = Float32x4.splat(0.5);
 final Float32x4 _SIMD0_25 = Float32x4.splat(0.25);
 final Float32x4 _SIMD0_125 = Float32x4.splat(0.125);
@@ -59,8 +65,16 @@ final Float32x4 _SIMDm1_5 = Float32x4.splat(-1.5);
 final Float32x4 _SIMD0_140625 = Float32x4.splat(0.140625);
 final Float32x4 _SIMD1 = Float32x4.splat(1);
 final Float32x4 _SIMD4 = Float32x4.splat(4);
+final Float32x4 _SIMD8 = Float32x4.splat(8);
 final Float32x4 _SIMDm2 = Float32x4.splat(-2);
 final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);
+final Float32x4List _SimdSignMaskVector = Float32x4List.fromList(List.generate(
+    16,
+    (index) => Float32x4(
+        (index & 1) != 0 ? -1.0 : 1.0,
+        (index & 2) != 0 ? -1.0 : 1.0,
+        (index & 4) != 0 ? -1.0 : 1.0,
+        (index & 8) != 0 ? -1.0 : 1.0)));
 
 class ActivationFunction {
   const ActivationFunction(this.type, this.lowerLimit, this.upperLimit,
@@ -109,6 +123,46 @@ const ActivationFunction activationBell = ActivationFunction(
     ActivationFunctionType.bell, 0.0, 1.0,
     func: bellFunc, derivative: bellDeriv);
 
+double fastSigmoidFunc(double x) {
+  var absX = x.abs();
+  if (absX <= 0.75) {
+    return x;
+  }
+  var ftxmo = absX * 4 - 1;
+  return x.sign * (1 - 1 / (ftxmo * ftxmo));
+}
+
+double fastSigmoidDeriv(double x) {
+  var absX = x.abs();
+  if (absX <= 0.75) {
+    return 1;
+  }
+  var ftxmo = absX * 4 - 1;
+  return (8 / (ftxmo * ftxmo * ftxmo));
+}
+
+Float32x4 fastSigmoidFuncX4(Float32x4 x) {
+  var absX = x.abs();
+  var ftxmo = absX.scale(4) - _SIMD1;
+  return absX
+      .greaterThan(_SIMD0_75)
+      .select(_SimdSignMaskVector[x.signMask] * (_SIMD1-(ftxmo*ftxmo).reciprocal()), x);
+}
+Float32x4 fastSigmoidDerivX4(Float32x4 x) {
+  var absX = x.abs();
+  var ftxmo = absX.scale(4) - _SIMD1;
+  return absX
+      .greaterThan(_SIMD0_75)
+      .select( (_SIMD8/(ftxmo*ftxmo*ftxmo)), _SIMD1);
+}
+
+
+
+const ActivationFunction activationFastSigmoid = ActivationFunction(
+    ActivationFunctionType.fastSigmoid, -1.0, 1.0,
+    func: fastSigmoidFunc, derivative: fastSigmoidDeriv,
+    funcSIMD: fastSigmoidFuncX4, derivativeSIMD: fastSigmoidDerivX4);
+
 double fastBellFunc(double x) {
   var x2 = x * x;
   if (x2 <= 0.25) return 1 - 2 * x2;
@@ -131,14 +185,13 @@ Float32x4 fastBellFuncX4(Float32x4 x) {
 Float32x4 fastBellDerivX4(Float32x4 x) {
   var x2 = x * x;
   var xm4 = x.scale(-4);
-  return x2
-      .greaterThan(_SIMD0_25)
-      .select((x2 * xm4).reciprocal(), xm4);
+  return x2.greaterThan(_SIMD0_25).select((x2 * xm4).reciprocal(), xm4);
 }
 
 const ActivationFunction activationFastBell = ActivationFunction(
     ActivationFunctionType.fastBell, 0.0, 1.0,
-    func: fastBellFunc, derivative: fastBellDeriv,
+    func: fastBellFunc,
+    derivative: fastBellDeriv,
     funcSIMD: fastBellFuncX4,
     derivativeSIMD: fastBellDerivX4);
 
@@ -323,15 +376,16 @@ const ActivationFunction activationUSCSLS = ActivationFunction(
     derivativeSIMD: uscslsDerivSimd);
 
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
-  ActivationFunctionType.abs: activationAbsSigmoid,
   ActivationFunctionType.logistic: activationLogisticSigmoid,
   ActivationFunctionType.tanh: activationTanh,
+  ActivationFunctionType.abs: activationAbsSigmoid,
   ActivationFunctionType.bell: activationBell,
   ActivationFunctionType.gelu: activationGELU,
   ActivationFunctionType.uscls: activationUSCLS,
   ActivationFunctionType.uscsls: activationUSCSLS,
   ActivationFunctionType.uacsls: activationUACSLS,
   ActivationFunctionType.fastBell: activationFastBell,
+  ActivationFunctionType.fastSigmoid: activationFastSigmoid,
 };
 
 var activationTypeFromString = Map.fromEntries(
