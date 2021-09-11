@@ -21,12 +21,12 @@ void main() {
   ];
 
   final bwise_net =
-      TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
+      TfannNetwork.full([3, 4, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
   // train network
   // train method takes a single TrainSet and runs it only once.
-  for (int i = 0; i < 7000; ++i) {
+  for (int i = 0; i < 10000; ++i) {
     bw_data.forEach((data) {
-      bwise_net.train(data, learningRate: 0.06);
+      bwise_net.train(data, learningRate: 0.04);
     });
   }
 

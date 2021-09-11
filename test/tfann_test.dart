@@ -20,16 +20,24 @@ void main() {
       3,
       3,
       3,
+      3,
+      3,
+      3,
+      4,
       4
     ], [
+      ActivationFunctionType.logistic,
       ActivationFunctionType.uscls,
       ActivationFunctionType.uacsls,
       ActivationFunctionType.fastBell,
-      ActivationFunctionType.fastSigmoid,
+      ActivationFunctionType.divlineSigmoid,
       ActivationFunctionType.abs,
       ActivationFunctionType.bell,
       ActivationFunctionType.tanh,
-      ActivationFunctionType.uscsls
+      ActivationFunctionType.uscsls,
+      ActivationFunctionType.funnyHat,
+      ActivationFunctionType.cubicSigmoid,
+      ActivationFunctionType.line
     ]);
     List<TrainSetInputOutput> bitwiseTrainSets = [
       /*  output: column  1 - XOR of 3 bits, column  2 - AND of 3 bits,
@@ -47,13 +55,14 @@ void main() {
     ];
     for (int i = 0; i < 8000; ++i) {
       bitwiseTrainSets.forEach((data) {
-        bitwiseNN.train(data, learningRate: 0.01);
+        bitwiseNN.train(data, learningRate: 0.001);
       });
     }
     setUp(() {});
 
     test('code generation', () async {
       var sourceCode = compileNetwork(bitwiseNN, functionName: 'bitwiseEval');
+      print(sourceCode);
       final uri = Uri.dataFromString(
         '''
 import "dart:isolate";
@@ -79,6 +88,8 @@ void main(_, SendPort port) {
 
       List<List<double>> results = await port.first;
       for (int i = 0; i < 8; ++i) {
+        expect(results[i].any((element) => element.isNaN), isFalse);
+        expect(results[i].every((element) => element.isFinite), isTrue);
         expect(
             results[i].toString() ==
                 bitwiseNN
@@ -115,7 +126,8 @@ void main(_, SendPort port) {
               (actFunc.func(xs[i] + 1 / 8192) - actFunc.func(xs[i])) * 8192;
           var actualDeriv = actFunc.derivative(xs[i] + 1 / 16384);
           expect((actualDeriv - compDeriv).abs() < 0.0001, isTrue,
-              reason: '${actFunc.type.toString()}: at ${xs[i]}: computed: $compDeriv, expected: $actualDeriv');
+              reason:
+                  '${actFunc.type.toString()}: at ${xs[i]}: computed: $compDeriv, expected: $actualDeriv');
         }
       });
     });

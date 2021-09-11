@@ -30,7 +30,7 @@ List<TrainSetInputOutput> xor_data = [
     ];
 
 final xor_net =
-        TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
+        TfannNetwork.full([3, 4, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
 
 print("before training...");
 xor_data.forEach((data) => print(
@@ -38,9 +38,9 @@ xor_data.forEach((data) => print(
 
 // train network
 // train method takes a single TrainSet and runs it only once.
-for (int i = 0; i < 7000; ++i) {
+for (int i = 0; i < 10000; ++i) {
       xor_data.forEach((data) {
-        xor_net.train(data, learningRate: 0.06);
+        xor_net.train(data, learningRate: 0.04);
       });
 }
 
@@ -85,34 +85,76 @@ print(compileNetwork(xor_net));
 Output:
 
 ```dart
-
 import 'dart:typed_data';
 import 'dart:math';
 
-double uscsls(double x) {  x += 0.45353;  if (x > 4) return 1 + 0.25 * x;  if (x > -2) {    var x2 = x * x;    var x3 = x2 * x;    return (-11/576)*x3+(7/96)*x2+(7/12)*x-5/18;  }  return 0.0625 * x - 0.875;}
+final Float32x4 _SIMD0 = Float32x4.zero();
+final Float32x4 _SIMD0_75 = Float32x4.splat(0.75);
+final Float32x4 _SIMD0_5 = Float32x4.splat(0.5);
+final Float32x4 _SIMD0_25 = Float32x4.splat(0.25);
+final Float32x4 _SIMD0_125 = Float32x4.splat(0.125);
+final Float32x4 _SIMD0_375 = Float32x4.splat(0.375);
+final Float32x4 _SIMD0_625 = Float32x4.splat(0.625);
+final Float32x4 _SIMD0_0625 = Float32x4.splat(0.0625);
+final Float32x4 _SIMD0_03 = Float32x4.splat(0.03);
+final Float32x4 _SIMD0_65625 = Float32x4.splat(0.65625);
+final Float32x4 _SIMD0_065 = Float32x4.splat(0.065);
+final Float32x4 _SIMD0_185 = Float32x4.splat(0.185);
+final Float32x4 _SIMD0_104 = Float32x4.splat(0.104);
+final Float32x4 _SIMD0_208 = Float32x4.splat(0.208);
+final Float32x4 _SIMD0_704 = Float32x4.splat(0.704);
+final Float32x4 _SIMDm0_8 = Float32x4.splat(-0.8);
+final Float32x4 _SIMDm1_5 = Float32x4.splat(-1.5);
+final Float32x4 _SIMD0_28125 = Float32x4.splat(0.28125);
+final Float32x4 _SIMD1 = Float32x4.splat(1);
+final Float32x4 _SIMD1_47 = Float32x4.splat(1.47);
+final Float32x4 _SIMD1_6 = Float32x4.splat(1.6);
+final Float32x4 _SIMD4 = Float32x4.splat(4);
+final Float32x4 _SIMD8 = Float32x4.splat(8);
+final Float32x4 _SIMDm2 = Float32x4.splat(-2);
+final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);
+final Float32x4 _SIMD0_4 = Float32x4.splat(0.4);
+final Float32x4 _SIMDm0_16 = Float32x4.splat(-0.16);
+final Float32x4List _SimdSignMaskVector = Float32x4List.fromList(List.generate(
+    16,
+    (index) => Float32x4(
+        (index & 1) != 0 ? -1.0 : 1.0,
+        (index & 2) != 0 ? -1.0 : 1.0,
+        (index & 4) != 0 ? -1.0 : 1.0,
+        (index & 8) != 0 ? -1.0 : 1.0)));
+
+double uscsls(double x) {
+  if (x >= 1.6) return 0.065 * x + 0.704;
+  if (x > -0.8) {
+    var x2 = x * x;
+    var x3 = x2 * x;
+    return 0.125 * (x2 - x3) + 0.625 * x;
+  }
+  return 0.185 * x - 0.208;
+}
+
+
 Float32x4 uscslsX4(Float32x4 x) {
-  x += Float32x4.splat(0.45353);
-  Int32x4 greater4 = x.greaterThan(Float32x4.splat(4));
+  Int32x4 greater1_6 = x.greaterThan(_SIMD1_6);
   Float32x4 x2 = x * x;
-  Float32x4 branch1Result = x.scale(0.25) + Float32x4.splat(1);
+
+  Float32x4 branch1Result = x.scale(0.065) + _SIMD0_704;
   Float32x4 x3 = x2 * x;
 
-  Int32x4 lessThanMinus2 = x.lessThanOrEqual(Float32x4.splat(-2));
-  Float32x4 branch3Result = x.scale(0.0625) - Float32x4.splat(0.875);  
-  
-  return greater4.select(
+  Int32x4 lessThanMinus0_8 = x.lessThanOrEqual(_SIMDm0_8);
+  Float32x4 branch3Result = x.scale(0.185) - _SIMD0_208;
+
+  return greater1_6.select(
       branch1Result,
-      lessThanMinus2.select(
+      lessThanMinus0_8.select(
           branch3Result,
-          x3.scale(-11 / 576) +
-              x2.scale(7 / 96) +
-              x.scale(7 / 12) -
-              Float32x4.splat(5 / 18)));
+           (x2 - x3).scale(0.125) +  x.scale(0.625)));
 }
-final List<Float32x4List> Lweight_tfann_evaluate_0 = [Uint32List.fromList([3209962030, 3216137746, 3210639258, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3214929675, 3215502053, 1067274155, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1065607033, 3209239346, 1067661884, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3216963690, 1062113278, 1067189068, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3217148364, 3217230598, 3217250982, 0]).buffer.asFloat32x4List()];
-final Float32x4List Lbias_tfann_evaluate_0 = Uint32List.fromList([1068705506, 1067842099, 1055350071, 1052725129, 3202069356, 0, 0, 0]).buffer.asFloat32x4List();
-final List<Float32x4List> Lweight_tfann_evaluate_1 = [Uint32List.fromList([1059405630, 3216279887, 1067104365, 1066584353, 1058614923, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3213682520, 3189869051, 1056767980, 1033034986, 1064559518, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1065551239, 3207167254, 1051821556, 1058158382, 3208697560, 0, 0, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1052874554, 1061131736, 3210522161, 3205716665, 3215786676, 0, 0, 0]).buffer.asFloat32x4List()];
-final Float32x4List Lbias_tfann_evaluate_1 = Uint32List.fromList([1055442582, 1065071056, 1060193668, 1047759191]).buffer.asFloat32x4List();
+
+final List<Float32x4List> Lweight_tfann_evaluate_0 = [Uint32List.fromList([1065924784, 3218828940, 3218824008, 0]).buffer.asFloat32x4List(), Uint32List.fromList([1074832170, 3207276024, 3207270630, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3218045595, 1058827529, 1058838751, 0]).buffer.asFloat32x4List(), Uint32List.fromList([3213025879, 3213257327, 3213261317, 0]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_0 = Uint32List.fromList([1051252787, 3212525348, 3213439945, 1049866728]).buffer.asFloat32x4List();
+final List<Float32x4List> Lweight_tfann_evaluate_1 = [Uint32List.fromList([3232711821, 1078727539, 3223330061, 1083118854]).buffer.asFloat32x4List(), Uint32List.fromList([3220807383, 3217432562, 3229760405, 3194501247]).buffer.asFloat32x4List(), Uint32List.fromList([3223501112, 1079543989, 1069180988, 3181878151]).buffer.asFloat32x4List(), Uint32List.fromList([1078650051, 1071470358, 1085387923, 3224445642]).buffer.asFloat32x4List()];
+final Float32x4List Lbias_tfann_evaluate_1 = Uint32List.fromList([1070831670, 3197145344, 1083611721, 1076128681]).buffer.asFloat32x4List();
 
 
 List<double> tfann_evaluate(List<double> inData) 
@@ -122,25 +164,21 @@ List<double> tfann_evaluate(List<double> inData)
   for (int i = 0; i< 3; ++i) input[i] = inData[i];
   Float32x4List currentTensor = input.buffer.asFloat32x4List();
   Float32List outputTensor;
-  outputTensor = Float32List(8);
-  for (int r = 0; r < 5; ++r)
+  outputTensor = Float32List(4);
+  for (int r = 0; r < 4; ++r)
   {
     Float32x4List weightRow = Lweight_tfann_evaluate_0[r];
     Float32x4 sum = currentTensor[0]*weightRow[0];
     outputTensor[r] = sum.x + sum.y + sum.z ;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
-  for (int i = 0; i < 2; ++i)
-    currentTensor[i]+=Lbias_tfann_evaluate_0[i];
+    currentTensor[0]+=Lbias_tfann_evaluate_0[0];
   currentTensor[0]=uscslsX4(currentTensor[0]);
-  outputTensor[4]=uscsls(outputTensor[4]);
   outputTensor = Float32List(4);
   for (int r = 0; r < 4; ++r)
   {
     Float32x4List weightRow = Lweight_tfann_evaluate_1[r];
-    Float32x4 sum = Float32x4.zero();
-    for (int i = 0; i < 2; ++i)
-    {     sum+=currentTensor[i]*weightRow[i];   }
+    Float32x4 sum = currentTensor[0]*weightRow[0];
     outputTensor[r] = sum.x + sum.y + sum.z + sum.w;
   }
   currentTensor = outputTensor.buffer.asFloat32x4List();
@@ -151,6 +189,28 @@ List<double> tfann_evaluate(List<double> inData)
 
 ```
 
+## Activation functions
+
+Since this library tries the best to utilize your CPU, we propose some new activation functions, that are easy to calculate, and also gives good behavior.
+
+[Abs Sigmoid](https://www.desmos.com/calculator/ukybfmgvot)
+
+[DivLine Sigmoid](https://www.desmos.com/calculator/bvf5vfuola)
+
+[Fast Bell](https://www.desmos.com/calculator/pvmo0rm7nt)
+
+[Cubic Sigmoid](https://www.desmos.com/calculator/dfnyzvoucc)
+
+[UACSLS](https://www.desmos.com/calculator/ftbmhwspfo)
+
+[USCLS](https://www.desmos.com/calculator/mzjwraayia)
+
+[USCSLS](https://www.desmos.com/calculator/dlfulx2isk)
+
+[Funny Hat](https://www.desmos.com/calculator/vuuufb7g72)
+
+[All activation functions](https://www.desmos.com/calculator/tyruwhpfth)
+
 ## Tips
 
 The train method returns both the forward error (before changing the weights) and the back-propagated error.
@@ -158,5 +218,5 @@ You can use the back-propagated error in cases of chaining networks (like RNN or
 In these case, you would need to train the network with set of Input and Error. use TrainSetInputError for this case.
 You can also use the back-propagated error to create what's called "deep fake" or "deep dream".
 
-If you get NaN in your weights, then you got the infamous exploding gradient problem. Try again and set propErrorLimit (one of train arguments) to a small value (1/number_of_layers might be a good value).
+If you get NaN in your weights, then you got the infamous exploding gradient problem. Try again and set 'propErrorLimit' (one of train arguments- sets a limit for the maximum propagated error) to a small value, or try smaller learning rate.
 Also, if you are using unbounded activation functions, try to set few of the layers to bell shaped activation function. The bell functions helps to stabilize the network.
