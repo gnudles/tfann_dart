@@ -16,19 +16,12 @@ void netTrainMultiply(TfannNetwork net, int rounds, double learningRate) {
 
 void main() {
   {
-    final multiply_net = TfannNetwork.full([
-      2,
-      30,
-      4,
-      1
-    ], [
-      ActivationFunctionType.funnyHat,
-      ActivationFunctionType.uscsls,
-      ActivationFunctionType.divlineSigmoid
-    ]);
-    netTrainMultiply(multiply_net, 40000, 0.3);
+    final multiply_net = TfannNetwork.full([2, 2, 1],
+        [ActivationFunctionType.squartered, ActivationFunctionType.line]);
+    netTrainMultiply(multiply_net, 40000, 0.1);
     netTrainMultiply(multiply_net, 300000, 0.001);
-    netTrainMultiply(multiply_net, 300000, 0.00001);
+    netTrainMultiply(multiply_net, 1000000, 0.0001);
+    netTrainMultiply(multiply_net, 10000, 0.0000001);
 
     for (int i = 0; i < 200; ++i) {
       var x = r.nextDouble() * 2 - 1;
@@ -43,5 +36,6 @@ void main() {
       print(
           "x= $x, y= $y, got: $result, expected: $expected : error= ${((expected - result) * 100 / (expected)).abs().truncate()}%");
     }
+    print(jsonEncode(multiply_net.toJson()));
   }
 }

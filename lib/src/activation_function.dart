@@ -37,7 +37,10 @@ enum ActivationFunctionType {
 
   funnyHat,
 
-  cubicSigmoid
+  cubicSigmoid,
+
+  /// f(x) = x*x/4
+  squartered
 }
 
 double tanh(double x) {
@@ -216,6 +219,17 @@ const ActivationFunction activationFastBell = ActivationFunction(
     derivative: fastBellDeriv,
     funcSIMD: fastBellFuncSimd,
     derivativeSIMD: fastBellDerivSimd);
+
+double squarteredFunc(double x) =>x*x/4;
+Float32x4 squarteredFuncSimd(Float32x4 x) =>x*x.scale(0.25);
+double squarteredDeriv(double x) =>x/2;
+Float32x4 squarteredDerivSimd(Float32x4 x) =>x.scale(0.5);
+const ActivationFunction activationSquartered = ActivationFunction(
+    ActivationFunctionType.squartered, 0.0, double.infinity,
+    func: squarteredFunc,
+    derivative: squarteredDeriv,
+    funcSIMD: squarteredFuncSimd,
+    derivativeSIMD: squarteredDerivSimd);
 
 //fast bell
 //0.4*(1-4*x*x)/(1+x*x)+0.6
@@ -505,6 +519,7 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.cubicSigmoid: activationCubicSigmoid,
   ActivationFunctionType.line: activationLine,
   ActivationFunctionType.funnyHat: activationFunnyHat,
+  ActivationFunctionType.squartered: activationSquartered,
 };
 
 var activationTypeFromString = Map.fromEntries(
