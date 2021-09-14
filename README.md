@@ -197,7 +197,7 @@ Since this library tries the best to utilize your CPU, we propose some new activ
 
 [DivLine Sigmoid](https://www.desmos.com/calculator/bvf5vfuola)
 
-[Fast Bell](https://www.desmos.com/calculator/pvmo0rm7nt)
+[Fast Bell](https://www.desmos.com/calculator/ekmmrldwty)
 
 [Cubic Sigmoid](https://www.desmos.com/calculator/dfnyzvoucc)
 
@@ -218,5 +218,5 @@ You can use the back-propagated error in cases of chaining networks (like RNN or
 In these case, you would need to train the network with set of Input and Error. use TrainSetInputError for this case.
 You can also use the back-propagated error to create what's called "deep fake" or "deep dream".
 
-If you get NaN in your weights, then you got the infamous exploding gradient problem. Try again and set 'propErrorLimit' (one of train arguments- sets a limit for the maximum propagated error) to a small value, or try smaller learning rate.
+If you get NaN in your weights, then you got the infamous exploding gradient problem. Try again and set 'maxErrClipAbove' (one of train arguments- sets a limit for the maximum propagated error) to a small value, or try smaller learning rate.
 Also, if you are using unbounded activation functions, try to set few of the layers to bell shaped activation function. The bell functions helps to stabilize the network.

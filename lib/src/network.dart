@@ -99,8 +99,8 @@ class TfannNetwork {
   /// returns the propagated error of the first layer, which is good for chained networks.
   TrainArtifacts train(TrainSet trainSet,
       {double learningRate = 0.04,
-      double propErrorLimit = 0.0,
-      double skipBelow = 0.0}) {
+      double maxErrClipAbove = 0.0,
+      double skipIfErrBelow = 0.0, bool Function(FVector)? skipIfOutput}) {
     FVector nextInputs = trainSet.input;
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
@@ -110,21 +110,27 @@ class TfannNetwork {
       nextInputs = artifacts.last.activation;
     }
     FVector netOutput = nextInputs;
+    
     FVector netErrors;
     if (trainSet is TrainSetInputOutput) {
-      netErrors = netOutput - (trainSet as TrainSetInputOutput).output;
+      netErrors = netOutput - trainSet.output;
     } else
       netErrors = (trainSet as TrainSetInputError).error;
+    if (skipIfOutput?.call(netOutput) ?? false)
+    {
+      return TrainArtifacts(
+            netErrors, FVector.zero(layers.first.inputLength));
+    }
     FVector normalizedErrors = netErrors;
-    if (propErrorLimit > 0.0) {
+    if (maxErrClipAbove > 0.0) {
       double norm = normalizedErrors.abs().largestElement();
-      if (norm < skipBelow) {
+      if (norm < skipIfErrBelow) {
         return TrainArtifacts(
             netErrors, FVector.zero(layers.first.inputLength));
       }
       //double norm = normalizedErrors.squared().sumElements();
-      if (norm > propErrorLimit) {
-        normalizedErrors = netErrors.scaled(propErrorLimit / norm);
+      if (norm > maxErrClipAbove) {
+        normalizedErrors = netErrors.scaled(maxErrClipAbove / norm);
       }
     }
 
