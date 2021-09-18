@@ -3,12 +3,12 @@ import 'dart:math';
 
 import 'package:tfann/tfann.dart';
 
-Random r = Random();
+final Random _r = Random();
 
 void netTrainMultiply(TfannNetwork net, int rounds, double learningRate) {
   for (int i = 0; i < rounds; ++i) {
-    var x = r.nextDouble() * 2 - 1;
-    var y = r.nextDouble() * 2 - 1;
+    var x = _r.nextDouble() * 2 - 1;
+    var y = _r.nextDouble() * 2 - 1;
     net.train(TrainSetInputOutput.lists([x, y], [x * y]),
         learningRate: learningRate);
   }
@@ -24,13 +24,13 @@ void main() {
     netTrainMultiply(multiply_net, 10000, 0.0000001);
 
     for (int i = 0; i < 200; ++i) {
-      var x = r.nextDouble() * 2 - 1;
-      var y = r.nextDouble() * 2 - 1;
+      var x = _r.nextDouble() * 2 - 1;
+      var y = _r.nextDouble() * 2 - 1;
       if (x.abs() < 0.1)
         x = x.sign *
-            (r.nextDouble() * 0.9 +
+            (_r.nextDouble() * 0.9 +
                 0.1); //skip really small values, cause nn's doesn't like 'em
-      if (y.abs() < 0.1) y = y.sign * (r.nextDouble() * 0.9 + 0.1);
+      if (y.abs() < 0.1) y = y.sign * (_r.nextDouble() * 0.9 + 0.1);
       var result = multiply_net.feedForward(FVector.fromList([x, y])).single;
       var expected = x * y;
       print(

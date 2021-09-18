@@ -91,6 +91,7 @@ class TfannNetwork {
 
   /// Get the network's output vector from the input vector.
   FVector feedForward(FVector input) {
+    assert(input.length == layers.first.inputLength);
     return layers.fold(input, (vec, layer) => layer.feedForward(vec));
   }
 
@@ -100,7 +101,9 @@ class TfannNetwork {
   TrainArtifacts train(TrainSet trainSet,
       {double learningRate = 0.04,
       double maxErrClipAbove = 0.0,
-      double skipIfErrBelow = 0.0, bool Function(FVector)? skipIfOutput}) {
+      double skipIfErrBelow = 0.0,
+      bool Function(FVector)? skipIfOutput}) {
+    assert(trainSet.input.length == layers.first.inputLength);
     FVector nextInputs = trainSet.input;
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
@@ -110,16 +113,17 @@ class TfannNetwork {
       nextInputs = artifacts.last.activation;
     }
     FVector netOutput = nextInputs;
-    
+
     FVector netErrors;
     if (trainSet is TrainSetInputOutput) {
+      assert(trainSet.output.length == layers.last.outputLength);
       netErrors = netOutput - trainSet.output;
-    } else
+    } else {
+      assert((trainSet as TrainSetInputError).error.length == layers.last.outputLength);
       netErrors = (trainSet as TrainSetInputError).error;
-    if (skipIfOutput?.call(netOutput) ?? false)
-    {
-      return TrainArtifacts(
-            netErrors, FVector.zero(layers.first.inputLength));
+    }
+    if (skipIfOutput?.call(netOutput) ?? false) {
+      return TrainArtifacts(netErrors, FVector.zero(layers.first.inputLength));
     }
     FVector normalizedErrors = netErrors;
     if (maxErrClipAbove > 0.0) {

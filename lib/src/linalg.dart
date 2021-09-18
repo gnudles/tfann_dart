@@ -29,6 +29,23 @@ class FVector {
   FVector.fromBuffer(this.nRows, this.columnData) {
     listView = columnData.buffer.asFloat32List(0, nRows);
   }
+  /// Builds a new FVector composed from multiple other FVector's
+  factory FVector.join(List<FVector> vectors) {
+    int nRows = vectors.fold(
+        0, (int previousValue, element) => previousValue + element.nRows);
+    Float32List newColumnData = Float32List(roundUp4(nRows));
+    int currentVec = 0;
+    int src = 0;
+    for (int dest = 0; dest < nRows; ++dest) {
+      while (src == vectors[currentVec].length) {
+        src = 0;
+        currentVec++;
+      }
+      newColumnData[dest] = vectors[currentVec][src];
+      src++;
+    }
+    return FVector.fromBuffer(nRows, newColumnData.buffer.asFloat32x4List());
+  }
   FVector slice(int offset, int length) {
     FVector newVec = FVector.zero(length);
     assert(offset + length <= nRows && offset >= 0 && length > 0);
@@ -230,7 +247,7 @@ class FVector {
   }
 
   /// Multiplies this vector by the transposed `other` vector.
-  /// 
+  ///
   /// Multiplying column vector by row vector creates a matrix.
   FLeftMatrix multiplyTransposed(FVector other) {
     FLeftMatrix result = FLeftMatrix.zero(other.nRows, this.nRows);
@@ -272,7 +289,7 @@ int roundUp4(int v) {
 }
 
 /// Simd based arbitrary size matrix
-/// 
+///
 /// A matrix which is optimized to be the left operand of matrix multiplication.
 class FLeftMatrix {
   List<Float32x4List> rowsData;
