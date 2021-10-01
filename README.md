@@ -207,9 +207,9 @@ Since this library tries the best to utilize your CPU, we propose some new activ
 
 [USCSLS](https://www.desmos.com/calculator/dlfulx2isk)
 
-[Funny Hat](https://www.desmos.com/calculator/vuuufb7g72)
+[Funny Hat](https://www.desmos.com/calculator/idsd8fyrv8)
 
-[All activation functions](https://www.desmos.com/calculator/tyruwhpfth)
+[All activation functions](https://www.desmos.com/calculator/aqxgezj6vj)
 
 ## Tips
 

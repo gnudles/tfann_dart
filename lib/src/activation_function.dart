@@ -72,12 +72,14 @@ final Float32x4 _SIMD0_375 = Float32x4.splat(0.375);
 final Float32x4 _SIMD0_625 = Float32x4.splat(0.625);
 final Float32x4 _SIMD0_0625 = Float32x4.splat(0.0625);
 final Float32x4 _SIMD0_03 = Float32x4.splat(0.03);
+final Float32x4 _SIMD0_033 = Float32x4.splat(0.033);
 final Float32x4 _SIMD0_65625 = Float32x4.splat(0.65625);
 final Float32x4 _SIMD0_065 = Float32x4.splat(0.065);
 final Float32x4 _SIMD0_185 = Float32x4.splat(0.185);
 final Float32x4 _SIMD0_104 = Float32x4.splat(0.104);
 final Float32x4 _SIMD0_208 = Float32x4.splat(0.208);
 final Float32x4 _SIMD0_704 = Float32x4.splat(0.704);
+final Float32x4 _SIMD0_7424 = Float32x4.splat(0.7424);
 final Float32x4 _SIMDm0_8 = Float32x4.splat(-0.8);
 final Float32x4 _SIMDm1_5 = Float32x4.splat(-1.5);
 final Float32x4 _SIMD0_28125 = Float32x4.splat(0.28125);
@@ -87,6 +89,7 @@ final Float32x4 _SIMD1_6 = Float32x4.splat(1.6);
 final Float32x4 _SIMD4 = Float32x4.splat(4);
 final Float32x4 _SIMD8 = Float32x4.splat(8);
 final Float32x4 _SIMDm2 = Float32x4.splat(-2);
+final Float32x4 _SIMDm3_3 = Float32x4.splat(-3.3);
 final Float32x4 _SIMD0_875 = Float32x4.splat(0.875);
 final Float32x4 _SIMD0_4 = Float32x4.splat(0.4);
 final Float32x4 _SIMDm0_16 = Float32x4.splat(-0.16);
@@ -460,19 +463,19 @@ double funnyHatFunc(double x) {
     }
     return 0.5*x*x2-1.25*x2+1;
   }
-  if(x<=-2)
+  if(x<=-3.3)
   {
-    return 0.4*x+1;
+    return 0.033*x-0.7424;
   }
-  return 1-0.1*x*x2-0.4*x2;
+  return 1-0.1*x*x2-0.5*x2;
 }
 Float32x4 funnyHatFuncSimd(Float32x4 x) {
   var x2 = x*x;
   var g0 = x.greaterThan(_SIMD0);
   var x3 = x2*x;
   var g1_6 =x.greaterThanOrEqual(_SIMD1_6);
-  var gm2 =x.greaterThan(_SIMDm2);
-  return g0.select(g1_6.select(x.scale(-0.16)+_SIMD0_104, x3.scale(0.5)-x2.scale(1.25)+_SIMD1), gm2.select(_SIMD1-x3.scale(0.1)-x2.scale(0.4), x.scale(0.4)+_SIMD1));
+  var gm3_3 =x.greaterThan(_SIMDm3_3);
+  return g0.select(g1_6.select(x.scale(-0.16)+_SIMD0_104, x3.scale(0.5)-x2.scale(1.25)+_SIMD1), gm3_3.select(_SIMD1-x3.scale(0.1)-x2.scale(0.5), x.scale(0.033)-_SIMD0_7424));
 }
 double funnyHatDeriv(double x) {
   double x2=x*x;
@@ -484,19 +487,19 @@ double funnyHatDeriv(double x) {
     }
     return 1.5*x2-2.5*x;
   }
-  if(x<=-2)
+  if(x<=-3.3)
   {
-    return 0.4;
+    return 0.033;
   }
-  return -0.3*x2-0.8*x;
+  return -0.3*x2-x;
 }
 
 Float32x4 funnyHatDerivSimd(Float32x4 x) {
   var x2 = x*x;
   var g0 = x.greaterThan(_SIMD0);
   var g1_6 =x.greaterThanOrEqual(_SIMD1_6);
-  var gm2 =x.greaterThan(_SIMDm2);
-  return g0.select(g1_6.select(_SIMDm0_16, x2.scale(1.5)-x.scale(2.5)), gm2.select(x2.scale(-0.3)+x.scale(-0.8), _SIMD0_4));
+  var gm3_3 =x.greaterThan(_SIMDm3_3);
+  return g0.select(g1_6.select(_SIMDm0_16, x2.scale(1.5)-x.scale(2.5)), gm3_3.select(x2.scale(-0.3)-x, _SIMD0_033));
 }
 const ActivationFunction activationFunnyHat = ActivationFunction(
     ActivationFunctionType.funnyHat, double.negativeInfinity, 1,
