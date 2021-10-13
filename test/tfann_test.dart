@@ -157,6 +157,27 @@ void main(_, SendPort port) {
       expect(a.largestElement() == -1.0, isTrue);
       expect(b.largestElement() == 3.0, isTrue);
     });
+    test('slice & join', () async {
+      FVector j = FVector.join([a, b]);
+      expect(j[0] == -3.0, isTrue);
+      expect(j[1] == -2.0, isTrue);
+      expect(j[2] == -1.0, isTrue);
+      expect(j[3] == 3.0, isTrue);
+      expect(j[4] == 2.0, isTrue);
+      expect(j[5] == 1.0, isTrue);
+      FVector s = j.slice(2, 3);
+      expect(s[0] == -1.0, isTrue);
+      expect(s[1] == 3.0, isTrue);
+      expect(s[2] == 2.0, isTrue);
+      expect(j.equalJumps(3)[0][0] == -3, isTrue);
+      expect(j.equalJumps(3)[0][1] == 3, isTrue);
+      expect(j.equalJumps(3)[1][0] == -2, isTrue);
+      expect(j.equalJumps(3)[1][1] == 2, isTrue);
+
+      expect(j.equalJumps(2)[0][0] == -3, isTrue);
+      expect(j.equalJumps(2)[0][1] == -1, isTrue);
+      expect(j.equalJumps(2)[0][2] == 2, isTrue);
+    });
     test('test matrix', () async {
       final FLeftMatrix leftMatrix = FLeftMatrix.fromList([
         [1, 2, 3],

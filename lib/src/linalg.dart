@@ -2,6 +2,8 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'dart:math' as math;
 
+import 'package:tfann/tfann.dart';
+
 /// Simd based column vector type.
 class FVector {
   final Float32x4List columnData;
@@ -29,6 +31,7 @@ class FVector {
   FVector.fromBuffer(this.nRows, this.columnData) {
     listView = columnData.buffer.asFloat32List(0, nRows);
   }
+
   /// Builds a new FVector composed from multiple other FVector's
   factory FVector.join(List<FVector> vectors) {
     int nRows = vectors.fold(
@@ -61,6 +64,26 @@ class FVector {
       dest32[i] = source32[i];
     }
     return newVec;
+  }
+
+  /// Breaks the vector into [jump] different vectors.
+  ///
+  /// It considers the vector to be a table(LTR,TTB) with [jump] columns,
+  /// and returns each column as seperate vector.
+  /// The length of the vector must be divisable by [jump]
+  List<FVector> equalJumps(int jump) {
+    assert(nRows % jump == 0);
+    int eachLength = nRows ~/ jump;
+    int eachLengthUp4 = roundUp4(eachLength);
+    Int32List inputI32 = columnData.buffer.asInt32List();
+    return List.generate(jump, (index) {
+      Int32List output = Int32List(eachLengthUp4);
+
+      for (int p = index, c = 0; p < nRows; p += jump, c++) {
+        output[c] = inputI32[p];
+      }
+      return FVector.fromBuffer(eachLength, output.buffer.asFloat32x4List());
+    });
   }
 
   FVector operator *(FVector other) {
