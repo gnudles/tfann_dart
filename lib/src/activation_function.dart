@@ -40,8 +40,14 @@ enum ActivationFunctionType {
   cubicSigmoid,
 
   /// f(x) = x*x/4
-  squartered
+  squartered,
+
+  /// for x>=0: 1-exp(-x)
+  /// for x<0: exp(x)-1
+  symmetricExpo
 }
+
+
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -150,6 +156,16 @@ const ActivationFunction activationBell = ActivationFunction(
     ActivationFunctionType.bell, 0.0, 1.0,
     func: bellFunc, derivative: bellDeriv);
 
+double symExpo(double x) {
+  return x >= 0 ? 1 - math.exp(-x) : math.exp(x) - 1;
+}
+double symExpoDeriv(double x) {
+  return math.exp(-x.abs());
+}
+const ActivationFunction activationSymmetricExpo = ActivationFunction(
+    ActivationFunctionType.symmetricExpo, -1.0, 1.0,
+    func: symExpo, derivative: symExpoDeriv);
+
 double divlineSigmoidFunc(double x) {
   var absX = x.abs();
   if (absX <= 0.75) {
@@ -223,10 +239,10 @@ const ActivationFunction activationFastBell = ActivationFunction(
     funcSIMD: fastBellFuncSimd,
     derivativeSIMD: fastBellDerivSimd);
 
-double squarteredFunc(double x) =>x*x/4;
-Float32x4 squarteredFuncSimd(Float32x4 x) =>x*x.scale(0.25);
-double squarteredDeriv(double x) =>x/2;
-Float32x4 squarteredDerivSimd(Float32x4 x) =>x.scale(0.5);
+double squarteredFunc(double x) => x * x / 4;
+Float32x4 squarteredFuncSimd(Float32x4 x) => x * x.scale(0.25);
+double squarteredDeriv(double x) => x / 2;
+Float32x4 squarteredDerivSimd(Float32x4 x) => x.scale(0.5);
 const ActivationFunction activationSquartered = ActivationFunction(
     ActivationFunctionType.squartered, 0.0, double.infinity,
     func: squarteredFunc,
@@ -452,62 +468,62 @@ const ActivationFunction activationLine = ActivationFunction(
     funcSIMD: simpleLineFuncSimd,
     derivativeSIMD: simpleLineDerivSimd);
 
-
 double funnyHatFunc(double x) {
-  double x2=x*x;
-  if (x>=0)
-  {
-    if(x>=1.6)
-    {
-      return -0.16*x+0.104;
+  double x2 = x * x;
+  if (x >= 0) {
+    if (x >= 1.6) {
+      return -0.16 * x + 0.104;
     }
-    return 0.5*x*x2-1.25*x2+1;
+    return 0.5 * x * x2 - 1.25 * x2 + 1;
   }
-  if(x<=-3.3)
-  {
-    return 0.033*x-0.7424;
+  if (x <= -3.3) {
+    return 0.033 * x - 0.7424;
   }
-  return 1-0.1*x*x2-0.5*x2;
+  return 1 - 0.1 * x * x2 - 0.5 * x2;
 }
+
 Float32x4 funnyHatFuncSimd(Float32x4 x) {
-  var x2 = x*x;
+  var x2 = x * x;
   var g0 = x.greaterThan(_SIMD0);
-  var x3 = x2*x;
-  var g1_6 =x.greaterThanOrEqual(_SIMD1_6);
-  var gm3_3 =x.greaterThan(_SIMDm3_3);
-  return g0.select(g1_6.select(x.scale(-0.16)+_SIMD0_104, x3.scale(0.5)-x2.scale(1.25)+_SIMD1), gm3_3.select(_SIMD1-x3.scale(0.1)-x2.scale(0.5), x.scale(0.033)-_SIMD0_7424));
+  var x3 = x2 * x;
+  var g1_6 = x.greaterThanOrEqual(_SIMD1_6);
+  var gm3_3 = x.greaterThan(_SIMDm3_3);
+  return g0.select(
+      g1_6.select(
+          x.scale(-0.16) + _SIMD0_104, x3.scale(0.5) - x2.scale(1.25) + _SIMD1),
+      gm3_3.select(_SIMD1 - x3.scale(0.1) - x2.scale(0.5),
+          x.scale(0.033) - _SIMD0_7424));
 }
+
 double funnyHatDeriv(double x) {
-  double x2=x*x;
-  if (x>=0)
-  {
-    if(x>=1.6)
-    {
+  double x2 = x * x;
+  if (x >= 0) {
+    if (x >= 1.6) {
       return -0.16;
     }
-    return 1.5*x2-2.5*x;
+    return 1.5 * x2 - 2.5 * x;
   }
-  if(x<=-3.3)
-  {
+  if (x <= -3.3) {
     return 0.033;
   }
-  return -0.3*x2-x;
+  return -0.3 * x2 - x;
 }
 
 Float32x4 funnyHatDerivSimd(Float32x4 x) {
-  var x2 = x*x;
+  var x2 = x * x;
   var g0 = x.greaterThan(_SIMD0);
-  var g1_6 =x.greaterThanOrEqual(_SIMD1_6);
-  var gm3_3 =x.greaterThan(_SIMDm3_3);
-  return g0.select(g1_6.select(_SIMDm0_16, x2.scale(1.5)-x.scale(2.5)), gm3_3.select(x2.scale(-0.3)-x, _SIMD0_033));
+  var g1_6 = x.greaterThanOrEqual(_SIMD1_6);
+  var gm3_3 = x.greaterThan(_SIMDm3_3);
+  return g0.select(g1_6.select(_SIMDm0_16, x2.scale(1.5) - x.scale(2.5)),
+      gm3_3.select(x2.scale(-0.3) - x, _SIMD0_033));
 }
+
 const ActivationFunction activationFunnyHat = ActivationFunction(
     ActivationFunctionType.funnyHat, double.negativeInfinity, 1,
     func: funnyHatFunc,
     derivative: funnyHatDeriv,
     funcSIMD: funnyHatFuncSimd,
     derivativeSIMD: funnyHatDerivSimd);
-
 
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.logistic: activationLogisticSigmoid,
@@ -523,6 +539,7 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.line: activationLine,
   ActivationFunctionType.funnyHat: activationFunnyHat,
   ActivationFunctionType.squartered: activationSquartered,
+  ActivationFunctionType.symmetricExpo: activationSymmetricExpo,
 };
 
 var activationTypeFromString = Map.fromEntries(

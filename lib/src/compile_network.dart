@@ -185,6 +185,10 @@ Float32x4 cubicSigmoidX4(Float32x4 x)
     stringBuffer.write('double squartered(double x) =>x*x/4;\n');
     stringBuffer.write('Float32x4 squarteredX4(Float32x4 x) =>x*x.scale(0.25);\n\n');
   }
+  if(activationsSet.contains(ActivationFunctionType.symmetricExpo))
+  {
+    stringBuffer.write('double symExpo(double x) => x >= 0 ? 1 - exp(-x) : exp(x) - 1;\n\n');
+  }
   if(activationsSet.contains(ActivationFunctionType.funnyHat))
   {
     stringBuffer.write('''double funnyHat(double x) {
@@ -278,7 +282,8 @@ Float32x4 funnyHatX4(Float32x4 x) {
           'simpleLineX4',
           'funnyHatX4',
           'cubicSigmoidX4',
-          'squarteredX4'
+          'squarteredX4',
+          ''
     ][layer.activationFunc.type.index];
     var currentFunc = [
       'logisticSigmoid',
@@ -293,7 +298,8 @@ Float32x4 funnyHatX4(Float32x4 x) {
           'simpleLine',
           'funnyHat',
           'cubicSigmoid',
-          'squartered'
+          'squartered',
+          'symExpo'
     ][layer.activationFunc.type.index];
     if (currentX4Func.isNotEmpty) {
       var actFull4 = layer.bias.length ~/ 4;

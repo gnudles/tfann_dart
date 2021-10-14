@@ -209,7 +209,7 @@ Since this library tries the best to utilize your CPU, we propose some new activ
 
 [Funny Hat](https://www.desmos.com/calculator/idsd8fyrv8)
 
-[All activation functions](https://www.desmos.com/calculator/aqxgezj6vj)
+[All activation functions](https://www.desmos.com/calculator/xwhaw077tn)
 
 ## Tips
 

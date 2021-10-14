@@ -119,7 +119,8 @@ class TfannNetwork {
       assert(trainSet.output.length == layers.last.outputLength);
       netErrors = netOutput - trainSet.output;
     } else {
-      assert((trainSet as TrainSetInputError).error.length == layers.last.outputLength);
+      assert((trainSet as TrainSetInputError).error.length ==
+          layers.last.outputLength);
       netErrors = (trainSet as TrainSetInputError).error;
     }
     if (skipIfOutput?.call(netOutput) ?? false) {
@@ -198,13 +199,13 @@ class TfannNetwork {
 
   static TfannNetwork? fromFile(String filename) {
     String jsonString = File(filename).readAsStringSync();
-    return fromJson(jsonDecode(jsonString));
+    return TfannNetwork.fromJson(jsonDecode(jsonString));
   }
 
   /// Creates TfannNetwork from Json object.
   ///
   /// Use 'jsonDecode' to convert a Json into Object.
-  static TfannNetwork? fromJson(dynamic jsonObject) {
+  factory TfannNetwork.fromJson(dynamic jsonObject) {
     assert(jsonObject is List);
     assert((jsonObject as List).isNotEmpty);
     if (jsonObject is List) {
@@ -212,6 +213,7 @@ class TfannNetwork {
       return TfannNetwork(
           jsonObject.map((e) => TfannLayer.fromJsonMap(e)).toList());
     }
-    return null;
+    throw ArgumentError(
+        "cannot construct a TfannNetwork from this json object");
   }
 }

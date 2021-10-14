@@ -23,6 +23,8 @@ void main() {
       3,
       3,
       3,
+      3,
+      3,
       4,
       4
     ], [
@@ -37,6 +39,8 @@ void main() {
       ActivationFunctionType.uscsls,
       ActivationFunctionType.funnyHat,
       ActivationFunctionType.cubicSigmoid,
+      ActivationFunctionType.squartered,
+      ActivationFunctionType.symmetricExpo,
       ActivationFunctionType.line
     ]);
     List<TrainSetInputOutput> bitwiseTrainSets = [
@@ -138,7 +142,7 @@ void main(_, SendPort port) {
       expect(loadedNN, isNotNull);
       for (int i = 0; i < 8; ++i) {
         expect(
-            loadedNN!
+            loadedNN
                 .feedForward(bitwiseTrainSets[i].input)
                 .equals(bitwiseNN.feedForward(bitwiseTrainSets[i].input)),
             isTrue);
