@@ -9,26 +9,37 @@ import 'dart:math';
 
 import 'package:tfann/tfann.dart';
 
+final Random _r = Random();
+void netTrainSine(TfannNetwork net, int rounds, double learningRate) {
+  for (int i = 0; i < rounds; ++i) {
+    var x = _r.nextDouble() *  6.5 - 3.25;
+      net.train(TrainSetInputOutput.lists([x], [sin(x)]),
+        learningRate: learningRate,maxErrClipAbove: 0.0001,skipIfErrBelow: 0.00001);
+  }
+}
 void main() {
   {
-    Random r = Random();
-    final sine_net = TfannNetwork.full([1, 32, 16, 1],
-        [ActivationFunctionType.fastBell, ActivationFunctionType.uscls, ActivationFunctionType.uscsls]);
-    for (int i = 0; i < 400000; ++i) {
-      var x = r.nextDouble() * 6.29 - 3.145;
-      sine_net.train(TrainSetInputOutput.lists([x], [sin(x)]),
-          learningRate: 0.02);
-    }
-    var x = -3.145;
+    
+    final sine_net = TfannNetwork.full([1, 64, 16, 16, 1],
+        [ActivationFunctionType.funnyHat, ActivationFunctionType.uscsls,
+        ActivationFunctionType.uscsls,
+        ActivationFunctionType.line]);
+        netTrainSine(sine_net,60000,0.8);
+    netTrainSine(sine_net,80000,0.6);
+    netTrainSine(sine_net,160000,0.3);
+    netTrainSine(sine_net,200000,0.1);
+    netTrainSine(sine_net,100000,0.05);
+    var x = -3.14;
     for (int i = 0; i < 1000; ++i) {
       
-      x += 6.29 / 1000;
+      x +=  6.29 / 1000;
       print(
-          "x= $x : error= ${sine_net.calculateMeanAbsoluteError(
+          "x= $x ,   result: ${sine_net.feedForward(FVector.fromList([x])).toList()} , real: ${sin(x)} error= ${sine_net.calculateMeanAbsoluteError(
             [TrainSetInputOutput.lists([x], [sin(x)])]).single}");
     }
   }
 }
+
 
 ```
 
@@ -46,43 +57,59 @@ void main() {
     Random r = Random();
     final circle_net = TfannNetwork.full([
       2,
-      32,
       16,
-      16,
+      8,
+      8,
       1
     ], [
-      ActivationFunctionType.uscls,
-      ActivationFunctionType.fastBell,
-      ActivationFunctionType.uscls,
-      ActivationFunctionType.fastBell
+      ActivationFunctionType.funnyHat,
+      ActivationFunctionType.uscsls,
+      ActivationFunctionType.uscsls,
+      ActivationFunctionType.divlineSigmoid,
     ]);
-    var criteria = (sr) => (sr < 1 && sr > 0.25) ? 1.0 : 0.0;
+    var criteria = (sr) => (sr < 1.2 && sr > 0.4) ? 1.0 : -1.0;
     for (int i = 0; i < 2000000; ++i) {
-      var x = r.nextDouble() * 3 - 1.5;
-      var y = r.nextDouble() * 3 - 1.5;
-      var sr = x * x + y * y;
+      var x = r.nextDouble() * 4 - 2;
+      var y = r.nextDouble() * 4 - 2;
+      var sr = sqrt(x * x + y * y);
       circle_net.train(TrainSetInputOutput.lists([x, y], [criteria(sr)]),
-          learningRate: 0.02);
+          learningRate: 0.01);
     }
     int false_positive = 0;
     int false_negative = 0;
+    int positive = 0;
+    int negative = 0;
     int testLength = 50000;
+    int positive_truth = 0;
+    double threshold = 0.1;
     for (int i = 0; i < testLength; ++i) {
-      var x = r.nextDouble() * 3 - 1.5;
-      var y = r.nextDouble() * 3 - 1.5;
-      var sr = x * x + y * y;
+      var x = r.nextDouble() * 4 - 2;
+      var y = r.nextDouble() * 4 - 2;
+      var sr = sqrt(x * x + y * y);
       var netResult = circle_net.feedForward(FVector.fromList([x, y])).single;
-      if (sr < 1 && sr > 0.25) if (netResult < 0.8) {
+      if (criteria(sr) == 1) {
+        positive_truth++;
+      }
+      if (criteria(sr) > 0 && netResult < threshold) {
         false_negative++;
       }
-      if (!(sr < 1 && sr > 0.25)) if (netResult > 0.2) {
+      if (criteria(sr) < 0 && netResult > -threshold) {
         false_positive++;
       }
+      if (netResult > threshold) {
+        positive++;
+      }
+      if (netResult < -threshold) {
+        negative++;
+      }
+      //print("$x $y $netResult");
     }
-    print(
-        "False Positive: ${false_positive * 100 / testLength}%   False Negative: ${false_negative * 100 / testLength}%");
+    print("Test ground truth: Positive: ${positive_truth * 100 / testLength}%    Negative: ${100 - positive_truth * 100 / testLength}%");
+    print("Result: Positive: ${positive * 100 / testLength}%  Negative: ${negative * 100 / testLength}%");
+    print("False Positive: ${false_positive * 100 / testLength}%   False Negative: ${false_negative * 100 / testLength}%");
   }
 }
+
 
 ```
 
@@ -113,11 +140,12 @@ void main() {
   ];
 
   final bwise_net =
-      TfannNetwork.full([3, 5, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
+      TfannNetwork.full([3, 4, 4], [ActivationFunctionType.uscsls, ActivationFunctionType.uscsls]);
   // train network
-  for (int i = 0; i < 7000; ++i) {
+  // train method takes a single TrainSet and runs it only once.
+  for (int i = 0; i < 10000; ++i) {
     bw_data.forEach((data) {
-      bwise_net.train(data, learningRate: 0.06);
+      bwise_net.train(data, learningRate: 0.04);
     });
   }
 
@@ -132,22 +160,26 @@ void main() {
 
 }
 
+
+
+
 ```
 
 ## multiply.dart
 
 ```dart
+
 import 'dart:convert';
 import 'dart:math';
 
 import 'package:tfann/tfann.dart';
 
-Random r = Random();
+final Random _r = Random();
 
 void netTrainMultiply(TfannNetwork net, int rounds, double learningRate) {
   for (int i = 0; i < rounds; ++i) {
-    var x = r.nextDouble() * 2 - 1;
-    var y = r.nextDouble() * 2 - 1;
+    var x = _r.nextDouble() * 2 - 1;
+    var y = _r.nextDouble() * 2 - 1;
     net.train(TrainSetInputOutput.lists([x, y], [x * y]),
         learningRate: learningRate);
   }
@@ -155,34 +187,30 @@ void netTrainMultiply(TfannNetwork net, int rounds, double learningRate) {
 
 void main() {
   {
-    final multiply_net = TfannNetwork.full([
-      2,
-      30,
-      4,
-      1
-    ], [
-      ActivationFunctionType.funnyHat,
-      ActivationFunctionType.uscsls,
-      ActivationFunctionType.divlineSigmoid
-    ]);
-    netTrainMultiply(multiply_net, 40000, 0.3);
+    //This is an infamous trick. Prepare to be amazed.
+    final multiply_net = TfannNetwork.full([2, 2, 1],
+        [ActivationFunctionType.squartered, ActivationFunctionType.line]);
+    netTrainMultiply(multiply_net, 40000, 0.1);
     netTrainMultiply(multiply_net, 300000, 0.001);
-    netTrainMultiply(multiply_net, 300000, 0.00001);
+    netTrainMultiply(multiply_net, 1000000, 0.0001);
+    netTrainMultiply(multiply_net, 10000, 0.0000001);
 
     for (int i = 0; i < 200; ++i) {
-      var x = r.nextDouble() * 2 - 1;
-      var y = r.nextDouble() * 2 - 1;
+      var x = _r.nextDouble() * 2 - 1;
+      var y = _r.nextDouble() * 2 - 1;
       if (x.abs() < 0.1)
         x = x.sign *
-            (r.nextDouble() * 0.9 +
+            (_r.nextDouble() * 0.9 +
                 0.1); //skip really small values, cause nn's doesn't like 'em
-      if (y.abs() < 0.1) y = y.sign * (r.nextDouble() * 0.9 + 0.1);
+      if (y.abs() < 0.1) y = y.sign * (_r.nextDouble() * 0.9 + 0.1);
       var result = multiply_net.feedForward(FVector.fromList([x, y])).single;
       var expected = x * y;
       print(
           "x= $x, y= $y, got: $result, expected: $expected : error= ${((expected - result) * 100 / (expected)).abs().truncate()}%");
     }
+    print(jsonEncode(multiply_net.toJson()));
   }
 }
+
 
 ```

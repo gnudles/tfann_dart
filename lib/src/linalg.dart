@@ -32,6 +32,14 @@ class FVector {
     listView = columnData.buffer.asFloat32List(0, nRows);
   }
 
+  factory FVector.generate(int length, double Function(int index) generator) {
+    Float32List list = Float32List(roundUp4(length));
+    for (int i = 0; i < length; ++i) {
+      list[i] = generator(i);
+    }
+    return FVector.fromBuffer(length, list.buffer.asFloat32x4List());
+  }
+
   /// Builds a new FVector composed from multiple other FVector's
   factory FVector.join(List<FVector> vectors) {
     int nRows = vectors.fold(
@@ -66,20 +74,20 @@ class FVector {
     return newVec;
   }
 
-  /// Breaks the vector into [jump] different vectors.
+  /// Breaks the vector into [count] different vectors.
   ///
-  /// It considers the vector to be a table(LTR,TTB) with [jump] columns,
+  /// It considers the vector to be a table(LTR,TTB) with [count] columns,
   /// and returns each column as seperate vector.
-  /// The length of the vector must be divisable by [jump]
-  List<FVector> equalJumps(int jump) {
-    assert(nRows % jump == 0);
-    int eachLength = nRows ~/ jump;
+  /// The length of the vector must be divisable by [count]
+  List<FVector> interleavedSplit(int count) {
+    assert(nRows % count == 0);
+    int eachLength = nRows ~/ count;
     int eachLengthUp4 = roundUp4(eachLength);
     Int32List inputI32 = columnData.buffer.asInt32List();
-    return List.generate(jump, (index) {
+    return List.generate(count, (index) {
       Int32List output = Int32List(eachLengthUp4);
 
-      for (int p = index, c = 0; p < nRows; p += jump, c++) {
+      for (int p = index, c = 0; p < nRows; p += count, c++) {
         output[c] = inputI32[p];
       }
       return FVector.fromBuffer(eachLength, output.buffer.asFloat32x4List());

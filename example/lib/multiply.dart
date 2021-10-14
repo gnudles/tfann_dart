@@ -16,6 +16,7 @@ void netTrainMultiply(TfannNetwork net, int rounds, double learningRate) {
 
 void main() {
   {
+    //This is an infamous trick. Prepare to be amazed.
     final multiply_net = TfannNetwork.full([2, 2, 1],
         [ActivationFunctionType.squartered, ActivationFunctionType.line]);
     netTrainMultiply(multiply_net, 40000, 0.1);
