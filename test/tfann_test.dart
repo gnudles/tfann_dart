@@ -169,14 +169,14 @@ void main(_, SendPort port) {
       expect(s[0] == -1.0, isTrue);
       expect(s[1] == 3.0, isTrue);
       expect(s[2] == 2.0, isTrue);
-      expect(j.equalJumps(3)[0][0] == -3, isTrue);
-      expect(j.equalJumps(3)[0][1] == 3, isTrue);
-      expect(j.equalJumps(3)[1][0] == -2, isTrue);
-      expect(j.equalJumps(3)[1][1] == 2, isTrue);
+      expect(j.interleavedSplit(3)[0][0] == -3, isTrue);
+      expect(j.interleavedSplit(3)[0][1] == 3, isTrue);
+      expect(j.interleavedSplit(3)[1][0] == -2, isTrue);
+      expect(j.interleavedSplit(3)[1][1] == 2, isTrue);
 
-      expect(j.equalJumps(2)[0][0] == -3, isTrue);
-      expect(j.equalJumps(2)[0][1] == -1, isTrue);
-      expect(j.equalJumps(2)[0][2] == 2, isTrue);
+      expect(j.interleavedSplit(2)[0][0] == -3, isTrue);
+      expect(j.interleavedSplit(2)[0][1] == -1, isTrue);
+      expect(j.interleavedSplit(2)[0][2] == 2, isTrue);
     });
     test('test matrix', () async {
       final FLeftMatrix leftMatrix = FLeftMatrix.fromList([
