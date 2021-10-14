@@ -1,3 +1,8 @@
+## 0.6.2
+
+* This version breaks compatibiliy with previous versions.
+* Modified activation functions, and also new ones.
+* New methods in FVector.
 ## 0.5.2
 
 * "logistic sigmoid" is back to normal, without scaling.
