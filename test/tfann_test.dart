@@ -181,6 +181,8 @@ void main(_, SendPort port) {
       expect(j.interleavedSplit(2)[0][0] == -3, isTrue);
       expect(j.interleavedSplit(2)[0][1] == -1, isTrue);
       expect(j.interleavedSplit(2)[0][2] == 2, isTrue);
+      expect(j.cherryPick([0, 2, 3, 4])[3]==2, isTrue);
+      
     });
     test('test matrix', () async {
       final FLeftMatrix leftMatrix = FLeftMatrix.fromList([

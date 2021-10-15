@@ -1,4 +1,4 @@
-## 0.6.2
+## 0.6.2+88
 
 * This version breaks compatibiliy with previous versions.
 * Modified activation functions, and also new ones.

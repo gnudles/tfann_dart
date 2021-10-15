@@ -236,6 +236,18 @@ class FVector {
     return listView[index];
   }
 
+  /// creates a new vector from selected indices
+  FVector cherryPick(List<int> indices) {
+    Int32List output = Int32List(roundUp4(indices.length));
+    Int32List input = listView.buffer.asInt32List(0,nRows);
+    int p = 0;
+    for (int index in indices) {
+      output[p] = input[index];
+      p++;
+    }
+    return FVector.fromBuffer(indices.length, output.buffer.asFloat32x4List());
+  }
+
   /// Applies function `func` to each element (mutable)
   void apply(double Function(double) func,
       [Float32x4 Function(Float32x4)? funcSIMD]) {
