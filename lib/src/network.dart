@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -75,6 +76,13 @@ class TfannLayer {
   int get outputLength => weights.nRows;
 }
 
+class NetworkFlow {
+  NetworkFlow(this.artifacts);
+  List<FeedArtifacts> artifacts;
+  FVector get output => artifacts.last.activation;
+  FVector get input => artifacts.first.activation;
+}
+
 /// A structure of a complete fully-connected network.
 class TfannNetwork {
   List<TfannLayer> layers = [];
@@ -96,10 +104,10 @@ class TfannNetwork {
   }
 
   /// Propagates forward the input vector, and collects the outputs and derivatives of each layer.
-  /// 
+  ///
   /// The first element in the resulted list contains the input vector along with a zeros vectors that reflects the derivatives.
   /// Each element afterwards contains the output vector and derivative vector of the n'th layer.
-  List<FeedArtifacts> createArtifactsStack(FVector input) {
+  NetworkFlow createNetworkFlow(FVector input) {
     List<FeedArtifacts> artifacts = [
       FeedArtifacts(input, FVector.zero(input.length))
     ];
@@ -109,7 +117,7 @@ class TfannNetwork {
       artifacts.add(currentArtifact);
       currentInput = currentArtifact.activation;
     }
-    return artifacts;
+    return NetworkFlow(artifacts);
   }
 
   /// Train network with a single training pair, for a single epoch.
@@ -119,17 +127,20 @@ class TfannNetwork {
       {double learningRate = 0.04,
       double maxErrClipAbove = 0.0,
       double skipIfErrBelow = 0.0,
-      bool Function(FVector)? skipIfOutput, //TODO: replace with error weight vector or something?
-      List<FeedArtifacts>? artifacts}) {
+      bool Function(FVector)?
+          skipIfOutput, //TODO: replace with error weight vector or something?
+      NetworkFlow? networkFlow}) {
     assert(trainSet.input.length == layers.first.inputLength);
     //create the input and output of each layer, and the derivatives
-    if (artifacts == null) {
-      artifacts = createArtifactsStack(trainSet.input);
+    if (networkFlow == null) {
+      networkFlow = createNetworkFlow(trainSet.input);
     }
 
-    FVector netOutput = artifacts.last.activation;
+    FVector netOutput = networkFlow.output;
+    List<FeedArtifacts> artifacts = networkFlow.artifacts;
 
     FVector netErrors;
+
     /// Normalize/clip the error if needed...
     if (trainSet is TrainSetInputOutput) {
       assert(trainSet.output.length == layers.last.outputLength);
