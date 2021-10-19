@@ -95,26 +95,42 @@ class TfannNetwork {
     return layers.fold(input, (vec, layer) => layer.feedForward(vec));
   }
 
+  /// Propagates forward the input vector, and collects the outputs and derivatives of each layer.
+  /// 
+  /// The first element in the resulted list contains the input vector along with a zeros vectors that reflects the derivatives.
+  /// Each element afterwards contains the output vector and derivative vector of the n'th layer.
+  List<FeedArtifacts> createArtifactsStack(FVector input) {
+    List<FeedArtifacts> artifacts = [
+      FeedArtifacts(input, FVector.zero(input.length))
+    ];
+    FVector currentInput = input;
+    for (TfannLayer l in layers) {
+      FeedArtifacts currentArtifact = l.createFeedArtifacts(currentInput);
+      artifacts.add(currentArtifact);
+      currentInput = currentArtifact.activation;
+    }
+    return artifacts;
+  }
+
   /// Train network with a single training pair, for a single epoch.
   ///
-  /// returns the propagated error of the first layer, which is good for chained networks.
+  /// Returns the propagated error of the first layer, which is good for chained networks.
   TrainArtifacts train(TrainSet trainSet,
       {double learningRate = 0.04,
       double maxErrClipAbove = 0.0,
       double skipIfErrBelow = 0.0,
-      bool Function(FVector)? skipIfOutput}) {
+      bool Function(FVector)? skipIfOutput, //TODO: replace with error weight vector or something?
+      List<FeedArtifacts>? artifacts}) {
     assert(trainSet.input.length == layers.first.inputLength);
-    FVector nextInputs = trainSet.input;
-    List<FeedArtifacts> artifacts = [
-      FeedArtifacts(nextInputs, FVector.zero(nextInputs.length))
-    ];
-    for (TfannLayer l in layers) {
-      artifacts.add(l.createFeedArtifacts(nextInputs));
-      nextInputs = artifacts.last.activation;
+    //create the input and output of each layer, and the derivatives
+    if (artifacts == null) {
+      artifacts = createArtifactsStack(trainSet.input);
     }
-    FVector netOutput = nextInputs;
+
+    FVector netOutput = artifacts.last.activation;
 
     FVector netErrors;
+    /// Normalize/clip the error if needed...
     if (trainSet is TrainSetInputOutput) {
       assert(trainSet.output.length == layers.last.outputLength);
       netErrors = netOutput - trainSet.output;
@@ -138,6 +154,8 @@ class TfannNetwork {
         normalizedErrors = netErrors.scaled(maxErrClipAbove / norm);
       }
     }
+
+    //Do the actual training...
 
     FVector previousDelta = normalizedErrors;
     List<FVector> layerDelta = [];
