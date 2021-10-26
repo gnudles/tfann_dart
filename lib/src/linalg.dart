@@ -94,6 +94,31 @@ class FVector {
     });
   }
 
+  /// Breaks the vector into [count] different vectors.
+  ///
+  /// It considers the vector to be a table(LTR,TTB) with [count] rows,
+  /// and returns each row as seperate vector.
+  /// The length of the vector must be divisable by [count]
+  List<FVector> split(int count) {
+    assert(nRows % count == 0);
+    int eachLength = nRows ~/ count;
+
+    return List.generate(
+        count, (index) => this.slice(index * eachLength, eachLength));
+  }
+
+  /// creates a new vector from selected indices
+  FVector cherryPick(List<int> indices) {
+    Int32List output = Int32List(roundUp4(indices.length));
+    Int32List input = listView.buffer.asInt32List(0, nRows);
+    int p = 0;
+    for (int index in indices) {
+      output[p] = input[index];
+      p++;
+    }
+    return FVector.fromBuffer(indices.length, output.buffer.asFloat32x4List());
+  }
+
   FVector operator *(FVector other) {
     assert(nRows == other.nRows);
     FVector newVec = FVector.zero(nRows);
@@ -234,18 +259,6 @@ class FVector {
   double operator [](int index) {
     assert(index >= 0 && index < nRows);
     return listView[index];
-  }
-
-  /// creates a new vector from selected indices
-  FVector cherryPick(List<int> indices) {
-    Int32List output = Int32List(roundUp4(indices.length));
-    Int32List input = listView.buffer.asInt32List(0,nRows);
-    int p = 0;
-    for (int index in indices) {
-      output[p] = input[index];
-      p++;
-    }
-    return FVector.fromBuffer(indices.length, output.buffer.asFloat32x4List());
   }
 
   /// Applies function `func` to each element (mutable)

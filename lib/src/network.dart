@@ -127,8 +127,6 @@ class TfannNetwork {
       {double learningRate = 0.04,
       double maxErrClipAbove = 0.0,
       double skipIfErrBelow = 0.0,
-      bool Function(FVector)?
-          skipIfOutput, //TODO: replace with error weight vector or something?
       NetworkFlow? networkFlow}) {
     assert(trainSet.input.length == layers.first.inputLength);
     //create the input and output of each layer, and the derivatives
@@ -141,7 +139,7 @@ class TfannNetwork {
 
     FVector netErrors;
 
-    /// Normalize/clip the error if needed...
+    // Check if we got error vector as input, or calculate the error vector.
     if (trainSet is TrainSetInputOutput) {
       assert(trainSet.output.length == layers.last.outputLength);
       netErrors = netOutput - trainSet.output;
@@ -150,9 +148,8 @@ class TfannNetwork {
           layers.last.outputLength);
       netErrors = (trainSet as TrainSetInputError).error;
     }
-    if (skipIfOutput?.call(netOutput) ?? false) {
-      return TrainArtifacts(netErrors, FVector.zero(layers.first.inputLength));
-    }
+
+    /// Normalize/clip the error if needed...
     FVector normalizedErrors = netErrors;
     if (maxErrClipAbove > 0.0) {
       double norm = normalizedErrors.abs().largestElement();
@@ -178,14 +175,16 @@ class TfannNetwork {
           (layers[i].weights.transposed().multiplyVector(currentDelta));
     }
 
-    var arti = artifacts.iterator;
-    for (TfannLayer l in layers) {
-      l.bias -= layerDelta.last.scaled(learningRate);
-      arti.moveNext();
+    if (learningRate != 0) {
+      var arti = artifacts.iterator;
+      for (TfannLayer l in layers) {
+        l.bias -= layerDelta.last.scaled(learningRate);
+        arti.moveNext();
 
-      l.weights -= layerDelta.last.multiplyTransposed(arti.current.activation)
-        ..scale(learningRate);
-      layerDelta.removeLast();
+        l.weights -= layerDelta.last.multiplyTransposed(arti.current.activation)
+          ..scale(learningRate);
+        layerDelta.removeLast();
+      }
     }
     return TrainArtifacts(netErrors, previousDelta);
   }
