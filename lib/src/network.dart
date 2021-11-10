@@ -210,7 +210,7 @@ class TfannNetwork {
   /// Returns Json object.
   ///
   /// To convert it to Json string, use 'jsonEncode'
-  Object toJson() {
+  dynamic toJson() {
     return layers.map((l) => l.toJson()).toList();
   }
 

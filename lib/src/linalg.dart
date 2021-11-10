@@ -261,6 +261,14 @@ class FVector {
     return listView[index];
   }
 
+  FVector reversed() {
+    FVector newVec = FVector.zero(nRows);
+    for (int i = 0; i < nRows; ++i) {
+      newVec.listView[i] = this.listView[nRows - 1 - i];
+    }
+    return newVec;
+  }
+
   /// Applies function `func` to each element (mutable)
   void apply(double Function(double) func,
       [Float32x4 Function(Float32x4)? funcSIMD]) {
