@@ -74,6 +74,20 @@ class FVector {
     return newVec;
   }
 
+  // Given a lengths list, splits the vector to consequtive vectors, each defined
+  // by a given length.
+  List<FVector> sliceByLengths(List<int> lengths, int offset) {
+    assert(lengths.fold<int>(
+                0, (previousValue, element) => previousValue + element) +
+            offset <=
+        nRows);
+    return List.generate(lengths.length, (index) {
+      FVector s = slice(offset, lengths[index]);
+      offset += lengths[index];
+      return s;
+    });
+  }
+
   /// Breaks the vector into [count] different vectors.
   ///
   /// It considers the vector to be a table(LTR,TTB) with [count] columns,
