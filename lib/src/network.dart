@@ -26,13 +26,6 @@ class FeedArtifacts {
   const FeedArtifacts(this.activation, this.derivative);
 }
 
-class TrainArtifacts {
-  /// defined as Network Output minus Expected Output.
-  final FVector forwardError;
-  final FVector propagatedError;
-  const TrainArtifacts(this.forwardError, this.propagatedError);
-}
-
 class TfannLayer {
   FLeftMatrix weights;
   FVector bias;
@@ -83,6 +76,16 @@ class NetworkFlow {
   FVector get input => artifacts.first.activation;
 }
 
+class TrainArtifacts {
+  /// defined as Network Output minus Expected Output.
+  final FVector forwardError;
+  final FVector propagatedError;
+  final List<FVector> biasDeltas;
+  final List<FLeftMatrix> weightDeltas;
+  const TrainArtifacts(this.forwardError, this.propagatedError, this.biasDeltas,
+      this.weightDeltas);
+}
+
 /// A structure of a complete fully-connected network.
 class TfannNetwork {
   List<TfannLayer> layers = [];
@@ -127,7 +130,9 @@ class TfannNetwork {
       {double learningRate = 0.04,
       double maxErrClipAbove = 0.0,
       double skipIfErrBelow = 0.0,
-      NetworkFlow? networkFlow}) {
+      NetworkFlow? networkFlow,
+      TrainArtifacts? prevTrainArtifacts,
+      double momentum = 0.0}) {
     assert(trainSet.input.length == layers.first.inputLength);
     //create the input and output of each layer, and the derivatives
     if (networkFlow == null) {
@@ -142,7 +147,7 @@ class TfannNetwork {
     // Check if we got error vector as input, or calculate the error vector.
     if (trainSet is TrainSetInputOutput) {
       assert(trainSet.output.length == layers.last.outputLength);
-      netErrors = netOutput - trainSet.output;
+      netErrors = trainSet.output - netOutput;
     } else {
       assert((trainSet as TrainSetInputError).error.length ==
           layers.last.outputLength);
@@ -155,7 +160,7 @@ class TfannNetwork {
       double norm = normalizedErrors.abs().largestElement();
       if (norm < skipIfErrBelow) {
         return TrainArtifacts(
-            netErrors, FVector.zero(layers.first.inputLength));
+            netErrors, FVector.zero(layers.first.inputLength),prevTrainArtifacts?.biasDeltas ?? [], prevTrainArtifacts?.weightDeltas ?? []);
       }
       //double norm = normalizedErrors.squared().sumElements();
       if (norm > maxErrClipAbove) {
@@ -174,19 +179,41 @@ class TfannNetwork {
       previousDelta =
           (layers[i].weights.transposed().multiplyVector(currentDelta));
     }
+    List<FVector> biasDeltas = [];
+    List<FLeftMatrix> weightDeltas = [];
+    bool useMomentum =
+        momentum > 0.0 && momentum < 1.0 && prevTrainArtifacts !=null &&
+         (prevTrainArtifacts.biasDeltas.isNotEmpty) && 
+         (prevTrainArtifacts.weightDeltas.isNotEmpty);
 
     if (learningRate != 0) {
       var arti = artifacts.iterator;
-      for (TfannLayer l in layers) {
-        l.bias -= layerDelta.last.scaled(learningRate);
-        arti.moveNext();
 
-        l.weights -= layerDelta.last.multiplyTransposed(arti.current.activation)
-          ..scale(learningRate);
+      for (int i = 0; i < layers.length; ++i) {
+        var l = layers[i];
+        arti.moveNext();
+        FVector currentBiasDelta = layerDelta.last;
+        if (useMomentum) {
+          currentBiasDelta.scale(1.0 - momentum);
+          currentBiasDelta += prevTrainArtifacts.biasDeltas[i].scaled(momentum);
+        }
+        l.bias += currentBiasDelta.scaled(learningRate);
+
+        FLeftMatrix currentWeightDelta =
+            layerDelta.last.multiplyTransposed(arti.current.activation);
+        if (useMomentum) {
+          currentWeightDelta.scale(1.0 - momentum);
+          currentWeightDelta +=
+              prevTrainArtifacts.weightDeltas[i].scaled(momentum);
+        }
+        l.weights += currentWeightDelta.scaled(learningRate);
         layerDelta.removeLast();
+
+        biasDeltas.add(currentBiasDelta);
+        weightDeltas.add(currentWeightDelta);
       }
     }
-    return TrainArtifacts(netErrors, previousDelta);
+    return TrainArtifacts(netErrors, previousDelta, biasDeltas, weightDeltas);
   }
 
   /// Given a single training pair, calculate the network's mean-square-error.

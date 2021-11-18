@@ -33,7 +33,7 @@ void main() {
       ActivationFunctionType.uacsls,
       ActivationFunctionType.fastBell,
       ActivationFunctionType.divlineSigmoid,
-      ActivationFunctionType.abs,
+      ActivationFunctionType.absSigmoid,
       ActivationFunctionType.bell,
       ActivationFunctionType.tanh,
       ActivationFunctionType.uscsls,

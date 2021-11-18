@@ -53,7 +53,7 @@ final Float32x4List _SimdSignMaskVector = Float32x4List.fromList(List.generate(
     stringBuffer.write(
         "double logisticSigmoid(double x) { return 1 / (1 + exp(-x));}\n");
   }
-  if (activationsSet.contains(ActivationFunctionType.abs)) {
+  if (activationsSet.contains(ActivationFunctionType.absSigmoid)) {
     stringBuffer
         .write("double absSigmoid(double x) { return x / (1 + x.abs());}\n");
     stringBuffer.write(
@@ -162,8 +162,7 @@ Float32x4 fastBellX4(Float32x4 x) {
 }\n\n''');
   }
   if (activationsSet.contains(ActivationFunctionType.cubicSigmoid)) {
-    stringBuffer.write(
-'''double cubicSigmoid(double x)
+    stringBuffer.write('''double cubicSigmoid(double x)
 {
   if (x.abs()>=1)
     return 0.03*x+x.sign*0.96;
@@ -175,22 +174,20 @@ Float32x4 cubicSigmoidX4(Float32x4 x)
   return x.abs().greaterThanOrEqual(_SIMD1).select(x.scale(0.03)+_SimdSignMaskVector[x.signMask].scale(0.96), x.scale(1.47)-x*x*x.scale(0.48));
 }\n\n''');
   }
-  if(activationsSet.contains(ActivationFunctionType.line))
-  {
+  if (activationsSet.contains(ActivationFunctionType.line)) {
     stringBuffer.write('double simpleLine(double x) => x;\n');
     stringBuffer.write('Float32x4 simpleLineX4(Float32x4 x) => x;\n\n');
   }
-  if(activationsSet.contains(ActivationFunctionType.squartered))
-  {
+  if (activationsSet.contains(ActivationFunctionType.squartered)) {
     stringBuffer.write('double squartered(double x) =>x*x/4;\n');
-    stringBuffer.write('Float32x4 squarteredX4(Float32x4 x) =>x*x.scale(0.25);\n\n');
+    stringBuffer
+        .write('Float32x4 squarteredX4(Float32x4 x) =>x*x.scale(0.25);\n\n');
   }
-  if(activationsSet.contains(ActivationFunctionType.symmetricExpo))
-  {
-    stringBuffer.write('double symExpo(double x) => x >= 0 ? 1 - exp(-x) : exp(x) - 1;\n\n');
+  if (activationsSet.contains(ActivationFunctionType.symmetricExpo)) {
+    stringBuffer.write(
+        'double symExpo(double x) => x >= 0 ? 1 - exp(-x) : exp(x) - 1;\n\n');
   }
-  if(activationsSet.contains(ActivationFunctionType.funnyHat))
-  {
+  if (activationsSet.contains(ActivationFunctionType.funnyHat)) {
     stringBuffer.write('''double funnyHat(double x) {
   double x2=x*x;
   if (x>=0)
@@ -214,6 +211,15 @@ Float32x4 funnyHatX4(Float32x4 x) {
   var g1_6 =x.greaterThanOrEqual(_SIMD1_6);
   var gm3_3 =x.greaterThan(_SIMDm3_3);
   return g0.select(g1_6.select(x.scale(-0.16)+_SIMD0_104, x3.scale(0.5)-x2.scale(1.25)+_SIMD1), gm3_3.select(_SIMD1-x3.scale(0.1)-x2.scale(0.5), x.scale(0.033)-_SIMD0_7424));
+}\n\n''');
+  }
+  if (activationsSet.contains(ActivationFunctionType.absolute)) {
+    stringBuffer.write('''double absolute(double x) {
+  return x.abs();
+}
+
+Float32x4 absoluteX4(Float32x4 x) {
+  return x.abs();
 }\n\n''');
   }
 
@@ -279,11 +285,12 @@ Float32x4 funnyHatX4(Float32x4 x) {
       'uacslsX4',
       'fastBellX4',
       'divlineSigmoidX4',
-          'simpleLineX4',
-          'funnyHatX4',
-          'cubicSigmoidX4',
-          'squarteredX4',
-          ''
+      'simpleLineX4',
+      'funnyHatX4',
+      'cubicSigmoidX4',
+      'squarteredX4',
+      '',
+      'absoluteX4'
     ][layer.activationFunc.type.index];
     var currentFunc = [
       'logisticSigmoid',
@@ -295,11 +302,12 @@ Float32x4 funnyHatX4(Float32x4 x) {
       'uacsls',
       'fastBell',
       'divlineSigmoid',
-          'simpleLine',
-          'funnyHat',
-          'cubicSigmoid',
-          'squartered',
-          'symExpo'
+      'simpleLine',
+      'funnyHat',
+      'cubicSigmoid',
+      'squartered',
+      'symExpo',
+      'absolute'
     ][layer.activationFunc.type.index];
     if (currentX4Func.isNotEmpty) {
       var actFull4 = layer.bias.length ~/ 4;

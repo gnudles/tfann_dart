@@ -12,7 +12,7 @@ enum ActivationFunctionType {
   tanh,
 
   /// abs sigmoid defined as x/(1+abs(x)). ([-1,1] bounds)
-  abs,
+  absSigmoid,
 
   /// bell curve defined as e^(-0.5*x*x). ([0,1] bounds)
   bell,
@@ -44,10 +44,11 @@ enum ActivationFunctionType {
 
   /// for x>=0: 1-exp(-x)
   /// for x<0: exp(x)-1
-  symmetricExpo
+  symmetricExpo,
+
+  // absolute value
+  absolute,
 }
-
-
 
 double tanh(double x) {
   var e2x = math.exp(2 * x);
@@ -159,9 +160,11 @@ const ActivationFunction activationBell = ActivationFunction(
 double symExpo(double x) {
   return x >= 0 ? 1 - math.exp(-x) : math.exp(x) - 1;
 }
+
 double symExpoDeriv(double x) {
   return math.exp(-x.abs());
 }
+
 const ActivationFunction activationSymmetricExpo = ActivationFunction(
     ActivationFunctionType.symmetricExpo, -1.0, 1.0,
     func: symExpo, derivative: symExpoDeriv);
@@ -273,11 +276,34 @@ Float32x4 absSigmoidDerivSimd(Float32x4 x) {
 }
 
 const ActivationFunction activationAbsSigmoid = ActivationFunction(
-    ActivationFunctionType.abs, -1.0, 1.0,
+    ActivationFunctionType.absSigmoid, -1.0, 1.0,
     func: absSigmoidFunc,
     derivative: absSigmoidDeriv,
     funcSIMD: absSigmoidFuncSimd,
     derivativeSIMD: absSigmoidDerivSimd);
+
+double absoluteFunc(double x) {
+  return x.abs();
+}
+
+double absoluteDeriv(double x) {
+  return x >= 0 ? 1.0 : -1.0;
+}
+
+Float32x4 absoluteFuncSimd(Float32x4 x) {
+  return x.abs();
+}
+
+Float32x4 absoluteDerivSimd(Float32x4 x) {
+  return _SimdSignMaskVector[x.signMask];
+}
+
+const ActivationFunction activationAbsolute = ActivationFunction(
+    ActivationFunctionType.absolute, 0, double.infinity,
+    func: absoluteFunc,
+    derivative: absoluteDeriv,
+    funcSIMD: absoluteFuncSimd,
+    derivativeSIMD: absoluteDerivSimd);
 
 double cubicSigmoidFunc(double x) {
   if (x.abs() >= 1) return 0.03 * x + x.sign * 0.96;
@@ -528,7 +554,7 @@ const ActivationFunction activationFunnyHat = ActivationFunction(
 final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.logistic: activationLogisticSigmoid,
   ActivationFunctionType.tanh: activationTanh,
-  ActivationFunctionType.abs: activationAbsSigmoid,
+  ActivationFunctionType.absSigmoid: activationAbsSigmoid,
   ActivationFunctionType.bell: activationBell,
   ActivationFunctionType.uscls: activationUSCLS,
   ActivationFunctionType.uscsls: activationUSCSLS,
@@ -540,6 +566,7 @@ final mapActivationFunction = <ActivationFunctionType, ActivationFunction>{
   ActivationFunctionType.funnyHat: activationFunnyHat,
   ActivationFunctionType.squartered: activationSquartered,
   ActivationFunctionType.symmetricExpo: activationSymmetricExpo,
+  ActivationFunctionType.absolute: activationAbsolute,
 };
 
 var activationTypeFromString = Map.fromEntries(
